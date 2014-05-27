@@ -22,11 +22,16 @@ It is in an html table, so I should be able to just extract the data from the ht
 from bs4 import BeautifulSoup
 from urllib import request
 
-r1 = request.urlopen('http://biz.yahoo.com/c/ec/200101.html')
-r2 = request.urlopen('http://biz.yahoo.com/c/ec/200102.html')
-r14 = request.urlopen('http://biz.yahoo.com/c/ec/201402.html')
+data = []
 
-soup1 = BeautifulSoup(r1.readall())
-soup2 = BeautifulSoup(r2.readall())
-soup14 = BeautifulSoup(r14.readall())
-
+for year in range(2001, 2015):
+    year = str(year)
+    for week in range(1, 54):
+        try:
+            week = str(week) if week > 9 else '0' + str(week)
+            r = request.urlopen('http://biz.yahoo.com/c/ec/' + year + week + '.html')
+            soup = BeautifulSoup(r.readall())
+            for tr in soup.find_all('tr')[6:]:
+                data.append([td.text for td in tr.find_all('td')])
+        except: pass
+print(data)
