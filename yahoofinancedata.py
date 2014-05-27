@@ -22,8 +22,10 @@ It is in an html table, so just extract the data from the html:
 
 from bs4 import BeautifulSoup
 from urllib import request
+import pandas as pd
+import pandas.io.data as web
 
-def write_econ_data():
+def econdata():
     f = open('econdata.csv', 'w')
     f.write('Year,Week,Date,Time (ET),Statistic,For,Actual,Briefing Forecast,Market Expects,Prior,Revised\n')
 
@@ -38,3 +40,7 @@ def write_econ_data():
                     f.write(','.join([year, week] + [td.text for td in tr.find_all('td')]) + '\n')
             except: pass
     f.close()
+    return pd.read_csv('econdata.csv')
+
+def mktdata():
+    return web.get_data_yahoo('SPY', '1/1/2001', '12/31/2014') * 10
