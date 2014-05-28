@@ -25,6 +25,9 @@ from urllib import request
 from numpy import nan as NA
 import pandas as pd
 import pandas.io.data as web
+from pandas.tseries.offsets import BDay
+from datetime import datetime
+
 
 def econdata(startyear=2001, endyear=2015):
     f = open('econdata.tsv', 'w')
@@ -43,8 +46,10 @@ def econdata(startyear=2001, endyear=2015):
     f.close()
     return pd.read_table('econdata.tsv')
 
+
 def mktdata(startdate='1/1/2001', enddate='12/31/2014'):
     return web.get_data_yahoo('SPY', startdate, enddate) * 10
+
 
 def processframe(econdf):
     '''
@@ -57,7 +62,7 @@ def processframe(econdf):
     '''
     def processelement(element):
         if not isinstance(element, str) or ':' in element:
-            return element
+            return str(element)
         if element[0] == '$' or element[1] == '$':
             element = element.replace('$','')
         if element[-1] == 'K':
@@ -74,5 +79,23 @@ def processframe(econdf):
             return element
     return econdf.applymap(processelement)
 
+def getclosebeforedate(dfrow):
+    time = dfrow['Time (ET)']
+    s = datetime.strptime(dfrow['Date'] + ' ' + dfrow['Year'], '%b %d %Y')
+    if time[-2:] == 'AM': s = s - BDay(1) # close should refer to yesterday's date otherwise refer to date of event
+    return s
+    
+
 #econdata(endyear=2002)
-#print(processframe(pd.read_table('econdata.tsv')))
+#df = processframe(pd.read_table('econdata.tsv'))
+#df['close date before event'] = df.apply(getclosebeforedate, axis=1)
+#print(df)
+
+mktdf = mktdata()
+print(mktdf)
+'''
+want to track:
+-close before info
+-open after info
+-close after info
+'''
