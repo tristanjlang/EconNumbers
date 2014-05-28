@@ -22,6 +22,7 @@ It is in an html table, so just extract the data from the html:
 
 from bs4 import BeautifulSoup
 from urllib import request
+from numpy import nan as NA
 import pandas as pd
 import pandas.io.data as web
 
@@ -52,9 +53,26 @@ def processframe(econdf):
     B ==> * 1000000000
     % ==> drop %, divide by 100
     $ ==> remove $
-    NA ==> NA
     --- ==> NA
     '''
-    return None
+    def processelement(element):
+        if not isinstance(element, str) or ':' in element:
+            return element
+        if element[0] == '$' or element[1] == '$':
+            element = element.replace('$','')
+        if element[-1] == 'K':
+            return float(element[:-1]) * 1000
+        elif element[-1] == 'M':
+            return float(element[:-1]) * 1000000
+        elif element[-1] == 'B':
+            return float(element[:-1]) * 1000000000
+        elif element[-1] == '%':
+            return float(element[:-1]) / 100
+        elif element == '---':
+            return NA
+        else:
+            return element
+    return econdf.applymap(processelement)
 
-econdata(endyear=2002)
+#econdata(endyear=2002)
+#print(processframe(pd.read_table('econdata.tsv')))
