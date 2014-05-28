@@ -25,11 +25,11 @@ from urllib import request
 import pandas as pd
 import pandas.io.data as web
 
-def econdata():
-    f = open('econdata.csv', 'w')
-    f.write('Year,Week,Date,Time (ET),Statistic,For,Actual,Briefing Forecast,Market Expects,Prior,Revised\n')
+def econdata(startyear=2001, endyear=2015):
+    f = open('econdata.tsv', 'w')
+    f.write('\t'.join(['Year','Week','Date','Time (ET)','Statistic','For','Actual','Briefing Forecast','Market Expects','Prior','Revised\n']))
 
-    for year in range(2001, 2015):
+    for year in range(startyear, endyear):
         year = str(year)
         for week in range(1, 54):
             try:
@@ -37,10 +37,24 @@ def econdata():
                 r = request.urlopen('http://biz.yahoo.com/c/ec/' + year + week + '.html')
                 soup = BeautifulSoup(r.readall())
                 for tr in soup.find_all('tr')[6:]:
-                    f.write(','.join([year, week] + [td.text for td in tr.find_all('td')]) + '\n')
+                    f.write('\t'.join([year, week] + [td.text for td in tr.find_all('td')]) + '\n')
             except: pass
     f.close()
-    return pd.read_csv('econdata.csv')
+    return pd.read_table('econdata.tsv')
 
-def mktdata():
-    return web.get_data_yahoo('SPY', '1/1/2001', '12/31/2014') * 10
+def mktdata(startdate='1/1/2001', enddate='12/31/2014'):
+    return web.get_data_yahoo('SPY', startdate, enddate) * 10
+
+def processframe(econdf):
+    '''
+    K ==> * 1000
+    M ==> * 1000000
+    B ==> * 1000000000
+    % ==> drop %, divide by 100
+    $ ==> remove $
+    NA ==> NA
+    --- ==> NA
+    '''
+    return None
+
+econdata(endyear=2002)
