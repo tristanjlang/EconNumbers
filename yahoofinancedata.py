@@ -53,42 +53,37 @@ def mktdata(startdate='1/1/2001', enddate='12/31/2014'):
 
 def processframe(econdf):
     def processelement(element):
-        if not isinstance(element, str) or ':' in element:
-            return str(element)
-        if element[0] == '$' or element[1] == '$':
-            element = element.replace('$','')
-        if element[-1] == 'K':
-            return float(element[:-1]) * 1000
-        elif element[-1] == 'M':
-            return float(element[:-1]) * 1000000
-        elif element[-1] == 'B':
-            return float(element[:-1]) * 1000000000
-        elif element[-1] == '%':
-            return float(element[:-1]) / 100
-        elif element == '---':
-            return NA
-        else:
-            return element
+        if not isinstance(element, str) or ':' in element: return str(element)
+        if element[0] == '$' or element[1] == '$': element = element.replace('$','')
+        if element[-1] == 'K': return float(element[:-1]) * 1000
+        elif element[-1] == 'M': return float(element[:-1]) * 1000000
+        elif element[-1] == 'B': return float(element[:-1]) * 1000000000
+        elif element[-1] == '%': return float(element[:-1]) / 100
+        elif element == '---' or element == 'nan' or element == 'Unch': return NA
+        else: return element
 
-    def getclosebeforedate(dfrow):
-        time = dfrow['Time (ET)']
-        s = datetime.strptime(dfrow['Date'] + ' ' + dfrow['Year'], '%b %d %Y')
-        if time[-2:] == 'AM': s = s - BDay(1) # close should refer to yesterday's date otherwise refer to date of event
-        return s
-
-    def getopenafterdate(dfrow):
-        return dfrow['close date before event'] + BDay(1)
-
+    normalize = lambda df: (df - df.mean()) / (df.max() - df.min())
+    getopenafterdate = lambda dfrow: dfrow['close date before event'] + BDay(1)
+    getclosebeforedate = lambda dfrow: datetime.strptime(dfrow['Date'] + ' ' + dfrow['Year'], '%b %d %Y') - BDay(1) if dfrow['Time (ET)'][-2:] == 'AM' else datetime.strptime(dfrow['Date'] + ' ' + dfrow['Year'], '%b %d %Y')
+        # close should refer to yesterday's date otherwise refer to date of event    
+    
     df = econdf.applymap(processelement)
     df['close date before event'] = df.apply(getclosebeforedate, axis=1)
     df['open date after event'] = df.apply(getopenafterdate, axis=1)
+    
     merged = pd.merge(df, mktdata(), left_on='close date before event', right_index=True)
     merged.columns = ['Year', 'Week', 'Date', 'Time (ET)', 'Statistic', 'For', 'Actual', 'Briefing Forecast', 'Market Expects', 'Prior', 'Revised', 'close date before event', 'open date after event', 'Open_before', 'High_before', 'Low_before', 'Close_before', 'Volume_before', 'Adj Close_before']
     merged = pd.merge(merged, mktdata(), left_on='open date after event', right_index=True)
-    merged.columns = ['Year', 'Week', 'Date', 'Time (ET)', 'Statistic', 'For', 'Actual', 'Briefing Forecast', 'Market Expects', 'Prior', 'Revised', 'close date before event', 'open date after event', 'Open_before', 'High_before', 'Low_before', 'Close_before', 'Volume_before', 'Adj Close_before', 'Open_after', 'High_after', 'Low_after', 'Close_after', 'Volume_after', 'Adj Close_after']    
-    return merged
+    merged.columns = ['Year', 'Week', 'Date', 'Time (ET)', 'Statistic', 'For', 'Actual', 'Briefing Forecast', 'Market Expects', 'Prior', 'Revised', 'close date before event', 'open date after event', 'Open_before', 'High_before', 'Low_before', 'Close_before', 'Volume_before', 'Adj Close_before', 'Open_after', 'High_after', 'Low_after', 'Close_after', 'Volume_after', 'Adj Close_after']
+    merged = merged[merged['Market Expects'] != 'nan'].dropna()
+    
+    X = merged[['Actual', 'Briefing Forecast', 'Market Expects', 'Revised', 'Close_before', 'Adj Close_before']] # removed 'Statistic' column
+    y = merged[['Open_after', 'High_after', 'Low_after', 'Close_after', 'Adj Close_after']]
+    X = X.applymap(lambda x: float(x) if isinstance(x, str) else x)
+    return X, y
 
-
+    
 #econdata(endyear=2002)
-df = processframe(pd.read_table('econdata.tsv'))
-print(df)
+X, y = processframe(pd.read_table('econdata.tsv'))
+print(X)
+print(y)
