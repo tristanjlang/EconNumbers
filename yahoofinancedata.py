@@ -52,14 +52,6 @@ def mktdata(startdate='1/1/2001', enddate='12/31/2014'):
 
 
 def processframe(econdf):
-    '''
-    K ==> * 1000
-    M ==> * 1000000
-    B ==> * 1000000000
-    % ==> drop %, divide by 100
-    $ ==> remove $
-    --- ==> NA
-    '''
     def processelement(element):
         if not isinstance(element, str) or ':' in element:
             return str(element)
@@ -77,25 +69,26 @@ def processframe(econdf):
             return NA
         else:
             return element
-    return econdf.applymap(processelement)
 
-def getclosebeforedate(dfrow):
-    time = dfrow['Time (ET)']
-    s = datetime.strptime(dfrow['Date'] + ' ' + dfrow['Year'], '%b %d %Y')
-    if time[-2:] == 'AM': s = s - BDay(1) # close should refer to yesterday's date otherwise refer to date of event
-    return s
-    
+    def getclosebeforedate(dfrow):
+        time = dfrow['Time (ET)']
+        s = datetime.strptime(dfrow['Date'] + ' ' + dfrow['Year'], '%b %d %Y')
+        if time[-2:] == 'AM': s = s - BDay(1) # close should refer to yesterday's date otherwise refer to date of event
+        return s
+
+    def getopenafterdate(dfrow):
+        return dfrow['close date before event'] + BDay(1)
+
+    df = econdf.applymap(processelement)
+    df['close date before event'] = df.apply(getclosebeforedate, axis=1)
+    df['open date after event'] = df.apply(getopenafterdate, axis=1)
+    merged = pd.merge(df, mktdata(), left_on='close date before event', right_index=True)
+    merged.columns = ['Year', 'Week', 'Date', 'Time (ET)', 'Statistic', 'For', 'Actual', 'Briefing Forecast', 'Market Expects', 'Prior', 'Revised', 'close date before event', 'open date after event', 'Open_before', 'High_before', 'Low_before', 'Close_before', 'Volume_before', 'Adj Close_before']
+    merged = pd.merge(merged, mktdata(), left_on='open date after event', right_index=True)
+    merged.columns = ['Year', 'Week', 'Date', 'Time (ET)', 'Statistic', 'For', 'Actual', 'Briefing Forecast', 'Market Expects', 'Prior', 'Revised', 'close date before event', 'open date after event', 'Open_before', 'High_before', 'Low_before', 'Close_before', 'Volume_before', 'Adj Close_before', 'Open_after', 'High_after', 'Low_after', 'Close_after', 'Volume_after', 'Adj Close_after']    
+    return merged
+
 
 #econdata(endyear=2002)
-#df = processframe(pd.read_table('econdata.tsv'))
-#df['close date before event'] = df.apply(getclosebeforedate, axis=1)
-#print(df)
-
-mktdf = mktdata()
-print(mktdf)
-'''
-want to track:
--close before info
--open after info
--close after info
-'''
+df = processframe(pd.read_table('econdata.tsv'))
+print(df)
