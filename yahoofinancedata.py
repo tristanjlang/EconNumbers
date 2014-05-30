@@ -62,28 +62,54 @@ def processframe(econdf):
         elif element == '---' or element == 'nan' or element == 'Unch': return NA
         else: return element
 
+    # additional helper functions
     normalize = lambda df: (df - df.mean()) / (df.max() - df.min())
     getopenafterdate = lambda dfrow: dfrow['close date before event'] + BDay(1)
     getclosebeforedate = lambda dfrow: datetime.strptime(dfrow['Date'] + ' ' + dfrow['Year'], '%b %d %Y') - BDay(1) if dfrow['Time (ET)'][-2:] == 'AM' else datetime.strptime(dfrow['Date'] + ' ' + dfrow['Year'], '%b %d %Y')
         # close should refer to yesterday's date otherwise refer to date of event    
     
+    # apply helper functions
     df = econdf.applymap(processelement)
     df['close date before event'] = df.apply(getclosebeforedate, axis=1)
     df['open date after event'] = df.apply(getopenafterdate, axis=1)
     
+    # merge market data with econ data
     merged = pd.merge(df, mktdata(), left_on='close date before event', right_index=True)
     merged.columns = ['Year', 'Week', 'Date', 'Time (ET)', 'Statistic', 'For', 'Actual', 'Briefing Forecast', 'Market Expects', 'Prior', 'Revised', 'close date before event', 'open date after event', 'Open_before', 'High_before', 'Low_before', 'Close_before', 'Volume_before', 'Adj Close_before']
     merged = pd.merge(merged, mktdata(), left_on='open date after event', right_index=True)
     merged.columns = ['Year', 'Week', 'Date', 'Time (ET)', 'Statistic', 'For', 'Actual', 'Briefing Forecast', 'Market Expects', 'Prior', 'Revised', 'close date before event', 'open date after event', 'Open_before', 'High_before', 'Low_before', 'Close_before', 'Volume_before', 'Adj Close_before', 'Open_after', 'High_after', 'Low_after', 'Close_after', 'Volume_after', 'Adj Close_after']
     merged = merged[merged['Market Expects'] != 'nan'].dropna()
-    
+
+    # change to X and y and remove text-based features
     X = merged[['Actual', 'Briefing Forecast', 'Market Expects', 'Revised', 'Close_before', 'Adj Close_before']] # removed 'Statistic' column
     y = merged[['Open_after', 'High_after', 'Low_after', 'Close_after', 'Adj Close_after']]
     X = X.applymap(lambda x: float(x) if isinstance(x, str) else x)
-    return X, y
+
+    # separate out the output values based on the close or the adjusted close before the event
+    y_adj = y.copy()
+
+    # convert nominal opens/closes after the event to returns on the close before the event
+    y['Open_after'] = y['Open_after'] / X['Close_before']
+    y['High_after'] = y['High_after'] / X['Close_before']
+    y['Low_after'] = y['Low_after'] / X['Close_before']
+    y['Close_after'] = y['Close_after'] / X['Close_before']
+    y['Adj Close_after'] = y['Adj Close_after'] / X['Close_before']
+    y.columns = ['r_Open_after', 'r_High_after', 'r_Low_after', 'r_Close_after', 'r_Adj Close_after']
+    
+    y_adj['Open_after'] = y_adj['Open_after'] / X['Adj Close_before']
+    y_adj['High_after'] = y_adj['High_after'] / X['Adj Close_before']
+    y_adj['Low_after'] = y_adj['Low_after'] / X['Adj Close_before']
+    y_adj['Close_after'] = y_adj['Close_after'] / X['Adj Close_before']
+    y_adj['Adj Close_after'] = y_adj['Adj Close_after'] / X['Adj Close_before']
+    y_adj.columns = ['r_Open_after', 'r_High_after', 'r_Low_after', 'r_Close_after', 'r_Adj Close_after']
+
+    # remove the closes from the features
+    X = X[['Actual', 'Briefing Forecast', 'Market Expects', 'Revised']]
+
+    return normalize(X), normalize(y), normalize(y_adj)
 
     
 #econdata(endyear=2002)
-X, y = processframe(pd.read_table('econdata.tsv'))
+X, y, y_adj = processframe(pd.read_table('econdata.tsv'))
 print(X)
 print(y)
