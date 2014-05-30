@@ -81,12 +81,13 @@ def processframe(econdf):
     merged = merged[merged['Market Expects'] != 'nan'].dropna()
 
     # change to X and y and remove text-based features
-    X = merged[['Actual', 'Briefing Forecast', 'Market Expects', 'Revised', 'Close_before', 'Adj Close_before']] # removed 'Statistic' column
+    X = merged[['Actual', 'Briefing Forecast', 'Market Expects', 'Revised', 'Close_before', 'Adj Close_before']]
     y = merged[['Open_after', 'High_after', 'Low_after', 'Close_after', 'Adj Close_after']]
     X = X.applymap(lambda x: float(x) if isinstance(x, str) else x)
-
+    
     # separate out the output values based on the close or the adjusted close before the event
     y_adj = y.copy()
+    y.is_copy = False
 
     # convert nominal opens/closes after the event to returns on the close before the event
     y['Open_after'] = y['Open_after'] / X['Close_before']
@@ -105,11 +106,15 @@ def processframe(econdf):
 
     # remove the closes from the features
     X = X[['Actual', 'Briefing Forecast', 'Market Expects', 'Revised']]
-
-    return normalize(X), normalize(y), normalize(y_adj)
+    X, y, y_adj = normalize(X), normalize(y), normalize(y_adj)
+    #X['Statistic'] = merged['Statistic']
+    #X['Date'] = merged['Date']
+    #X.columns = ['Statistic', 'Actual', 'Briefing Forecast', 'Market Expects', 'Revised']
+    return X, y, y_adj
 
     
 #econdata(endyear=2002)
 X, y, y_adj = processframe(pd.read_table('econdata.tsv'))
 print(X)
 print(y)
+print(y_adj)
