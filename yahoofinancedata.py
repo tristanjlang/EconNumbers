@@ -54,19 +54,27 @@ def mktdata(startdate='1/1/2001', enddate='12/31/2014'):
 def processframe(econdf):
     def processelement(element):
         if not isinstance(element, str) or ':' in element: return str(element)
-        if element[0] == '$' or element[1] == '$': element = element.replace('$','')
-        if element[-1] == 'K': return float(element[:-1]) * 1000
-        elif element[-1] == 'M': return float(element[:-1]) * 1000000
-        elif element[-1] == 'B': return float(element[:-1]) * 1000000000
-        elif element[-1] == '%': return float(element[:-1]) / 100
-        elif element == '---' or element == 'nan' or element == 'Unch': return NA
+        if len(element) > 2 and (element[0] == '$' or element[1] == '$'): element = element.replace('$','')
+        if element[-1].upper() == 'K' and (element[-2].isdigit() or element[-3].isdigit()): return float(element[:-1]) * 1000
+        elif element[-1].upper() == 'M' and (element[-2].isdigit() or element[-3].isdigit()): return float(element[:-1]) * 1000000
+        elif element[-1].upper() == 'B' and (element[-2].isdigit() or element[-3].isdigit()): return float(element[:-1]) * 1000000000
+        elif element == '0.00%-0.25%' or element == '0-0.25%' or element == '0.00% -0.25%': return 0.25 / 100
+        elif element[-2:] == '.%' or element[-2:] == '%%': return float(element[:-2]) / 100
+        elif element[-1] == '%': return float(element[:-1]) / 100 if len(element) > 3 and element[-3] != ',' else float(element.replace(',','.')[:-1]) / 100
+        elif element == '-' or element == '--' or element == '---' or element == 'nan' or element == 'Unch' or element == 'unch': return NA
+        elif element == 'ADP Employment' or element == 'ADP Employment Report': return 'ADP Employment Change'
+        elif element == 'Case Shiller 20 City Index' or element == 'Case-Shiller 20 City' or element == 'Case-Shiller 20-city Index (y/y)' or element == 'Case-Shiller Housing Price Index' or element == 'CaseShiller 20 City' or element == 'CaseShiller Home Price Index' or element == 'S&P;/Case-Shiller Home Price Index' or element == 'S&P;/CaseShiller Composite' or element == 'S&P;/CaseShiller Home Price Index': return 'Case-Shiller 20-city Index'
+        elif element == 'Core PCE Inflation' or element == 'PCE Prices' or element == 'Core PCE': return 'PCE Prices - Core'
         else: return element
 
     # additional helper functions
+    '''
+    NEED TO UPDATE NORMALIZE TO HANDLE NORMALIZE EACH COLUMN
+    '''
     normalize = lambda df: (df - df.mean()) / (df.max() - df.min())
     getopenafterdate = lambda dfrow: dfrow['close date before event'] + BDay(1)
     getclosebeforedate = lambda dfrow: datetime.strptime(dfrow['Date'] + ' ' + dfrow['Year'], '%b %d %Y') - BDay(1) if dfrow['Time (ET)'][-2:] == 'AM' else datetime.strptime(dfrow['Date'] + ' ' + dfrow['Year'], '%b %d %Y')
-        # close should refer to yesterday's date otherwise refer to date of event    
+        # close should refer to yesterday's date otherwise refer to date of event
     
     # apply helper functions
     df = econdf.applymap(processelement)
@@ -106,15 +114,26 @@ def processframe(econdf):
 
     # remove the closes from the features
     X = X[['Actual', 'Briefing Forecast', 'Market Expects', 'Revised']]
-    X, y, y_adj = normalize(X), normalize(y), normalize(y_adj)
-    #X['Statistic'] = merged['Statistic']
-    #X['Date'] = merged['Date']
-    #X.columns = ['Statistic', 'Actual', 'Briefing Forecast', 'Market Expects', 'Revised']
+    #X, y, y_adj = normalize(X), normalize(y), normalize(y_adj)
+    X['Statistic'] = merged['Statistic']
+    X['Date'] = merged['Date']
     return X, y, y_adj
 
     
 #econdata(endyear=2002)
 X, y, y_adj = processframe(pd.read_table('econdata.tsv'))
-print(X)
-print(y)
-print(y_adj)
+#print(X)
+#print(y)
+#print(y_adj)
+group = X.groupby(['Statistic'])['Statistic']
+#print(group.value_counts().index)
+
+print(X[X['Statistic'] == 'PCE Prices - Core'])
+#print(X[X['Statistic'] == 'Case-Shiller 20-city Index'])
+#print(X[X['Statistic'] == 'Case-Shiller 20-city Index (y/y)'])
+#print(X[X['Statistic'] == 'Case-Shiller Housing Price Index'])
+#print(X[X['Statistic'] == 'CaseShiller 20 City'])
+#print(X[X['Statistic'] == 'CaseShiller Home Price Index'])
+#print(X[X['Statistic'] == 'S&P;/Case-Shiller Home Price Index'])
+#print(X[X['Statistic'] == 'S&P;/CaseShiller Composite'])
+#print(X[X['Statistic'] == 'S&P;/CaseShiller Home Price Index'])
