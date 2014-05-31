@@ -65,7 +65,21 @@ def processframe(econdf):
         elif element == 'ADP Employment' or element == 'ADP Employment Report': return 'ADP Employment Change'
         elif element == 'Case Shiller 20 City Index' or element == 'Case-Shiller 20 City' or element == 'Case-Shiller 20-city Index (y/y)' or element == 'Case-Shiller Housing Price Index' or element == 'CaseShiller 20 City' or element == 'CaseShiller Home Price Index' or element == 'S&P;/Case-Shiller Home Price Index' or element == 'S&P;/CaseShiller Composite' or element == 'S&P;/CaseShiller Home Price Index': return 'Case-Shiller 20-city Index'
         elif element == 'Core PCE Inflation' or element == 'PCE Prices' or element == 'Core PCE': return 'PCE Prices - Core'
+        elif element == 'Current Account Balance': return 'Current Account'
+        elif element == 'Durable Goods Orders': return 'Durable Orders'
+        elif element == 'Durable Goods - Ex Transportation' or element == 'Durable Goods -ex Transportation' or element == 'Durable Orders - ex Transportation' or element == 'Durable Orders - ex transporation' or element == 'Durable Orders -ex Auto' or element == 'Durable Orders -ex Transporation' or element == 'Durable Orders -ex Transportation' or element == 'Durable Orders ex Auto' or element == 'Durable Orders ex Transporation' or element == 'Durable Orders ex Transportation' or element == 'Durable Orders ex auto' or element == 'Durable Orders ex transportation' or element == 'Durable Orders, Ex-Auto' or element == 'Durable Orders, Ex-Tran' or element == 'Durable Orders, Ex-Transportation' or element == 'Durable Ordes ex Transportation' or element == 'Durables, Ex Transportation' or element == 'Durables, Ex-Tran' or element == 'Durables, Ex-Transport' or element == 'Durables, Ex-Transportation' or element == 'Durables, ex Transporation': return 'Durable Goods -ex transportation'
+        elif element == 'Net Long-term TIC Flows': return 'Net Long-Term TIC Flows'
+        elif element == 'Trsy Budget': return 'Treasury Budget'
+        elif element == 'Unit Labor Costs - Preliminary': return 'Unit Labor Costs -Prel'
+        elif element == 'Nonfarm Payrolls - Private': return 'Nonfarm Private Payrolls'
+        elif element == 'NAHB Market Housing Index': return 'NAHB Housing Market Index'
+        elif element == 'Mich Sentiment-Rev': return 'Mich Sentiment-Rev.'
+        elif element == 'FHFA Housing Price Index' or element == 'FHFA US Housing Price Index': return 'FHFA Home Price Index'
         else: return element
+        '''
+        -current account balance...some of them come up as on the order of 1e2 and most are on the order of 1e11
+        -some of the items with % end up switching between % and no %....need to deal with this...
+        '''
 
     # additional helper functions
     '''
@@ -126,14 +140,33 @@ X, y, y_adj = processframe(pd.read_table('econdata.tsv'))
 #print(y)
 #print(y_adj)
 group = X.groupby(['Statistic'])['Statistic']
-#print(group.value_counts().index)
+for item in group:
+    print(item)
+#print(group.value_counts())
 
-print(X[X['Statistic'] == 'PCE Prices - Core'])
-#print(X[X['Statistic'] == 'Case-Shiller 20-city Index'])
-#print(X[X['Statistic'] == 'Case-Shiller 20-city Index (y/y)'])
-#print(X[X['Statistic'] == 'Case-Shiller Housing Price Index'])
-#print(X[X['Statistic'] == 'CaseShiller 20 City'])
-#print(X[X['Statistic'] == 'CaseShiller Home Price Index'])
-#print(X[X['Statistic'] == 'S&P;/Case-Shiller Home Price Index'])
-#print(X[X['Statistic'] == 'S&P;/CaseShiller Composite'])
-#print(X[X['Statistic'] == 'S&P;/CaseShiller Home Price Index'])
+'''print(X[X['Statistic'] == 'Durable Orders -ex Auto'])
+print(X[X['Statistic'] == 'Durable Orders -ex Transporation'])
+print(X[X['Statistic'] == 'Durable Orders -ex Transportation'])
+print(X[X['Statistic'] == 'Durable Orders ex Auto'])
+print(X[X['Statistic'] == 'Durable Orders ex Transporation'])
+print(X[X['Statistic'] == 'Durable Orders ex Transportation'])
+print(X[X['Statistic'] == 'Durable Orders ex auto'])
+print(X[X['Statistic'] == 'Durable Orders ex transportation'])
+print(X[X['Statistic'] == 'Durable Orders, Ex-Auto'])
+print(X[X['Statistic'] == 'Durable Orders, Ex-Tran'])
+print(X[X['Statistic'] == 'Durable Orders, Ex-Transportation'])'''
+
+
+
+'''
+NAPM Index ??
+NAPM Services ??
+
+Mich Sentiment- Final ??
+
+GDP Deflator ??
+
+Unit Labor Costs
+Unit Labor Costs - Rev ??
+Unit Labor Costs -Prel ??
+'''
