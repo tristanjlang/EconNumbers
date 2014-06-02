@@ -60,7 +60,7 @@ def processframe(econdf):
         elif element[-1].upper() == 'B' and (element[-2].isdigit() or element[-3].isdigit()): return float(element[:-1]) * 1000000000
         elif element == '0.00%-0.25%' or element == '0-0.25%' or element == '0.00% -0.25%': return 0.25
         elif element[-2:] == '.%' or element[-2:] == '%%': return float(element[:-2])
-        elif element[-1] == '%': return float(element[:-1]) / 100 if len(element) > 3 and element[-3] != ',' else float(element.replace(',','.')[:-1])
+        elif element[-1] == '%': return float(element[:-1]) if len(element) > 3 and element[-3] != ',' else float(element.replace(',','.')[:-1])
         elif element == '-' or element == '--' or element == '---' or element == 'nan' or element == 'Unch' or element == 'unch': return NA
         elif element == 'ADP Employment' or element == 'ADP Employment Report': return 'ADP Employment Change'
         elif element == 'Case Shiller 20 City Index' or element == 'Case-Shiller 20 City' or element == 'Case-Shiller 20-city Index (y/y)' or element == 'Case-Shiller Housing Price Index' or element == 'CaseShiller 20 City' or element == 'CaseShiller Home Price Index' or element == 'S&P;/Case-Shiller Home Price Index' or element == 'S&P;/CaseShiller Composite' or element == 'S&P;/CaseShiller Home Price Index': return 'Case-Shiller 20-city Index'
@@ -77,6 +77,7 @@ def processframe(econdf):
         elif element == 'FHFA Housing Price Index' or element == 'FHFA US Housing Price Index': return 'FHFA Home Price Index'
         elif element == 'NAPM Index': return 'ISM Index'
         elif element == 'NAPM Services': return 'ISM Services'
+        elif element == 'NY Empire State Index': return 'Empire Manufacturing'
         else: return element
         '''
         -current account balance...some of them come up as on the order of 1e2 and most are on the order of 1e11
@@ -142,8 +143,8 @@ X, y, y_adj = processframe(pd.read_table('econdata.tsv'))
 #print(y)
 #print(y_adj)
 group = X.groupby(['Statistic'])['Statistic']
-for item in group:
-    print(item)
+for k, gp in group:
+    print(k)
 #print(group.value_counts())
 
 #print(X[X['Statistic'] == 'Mich Sentiment- Final'])
