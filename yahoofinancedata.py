@@ -81,10 +81,7 @@ def processframe(econdf):
         elif element == 'NAPM Services': return 'ISM Services'
         elif element == 'NY Empire State Index': return 'Empire Manufacturing'
         else: return element
-        '''
-        -current account balance...some of them come up as on the order of 1e2 and most are on the order of 1e11
-        -some of the items with % end up switching between % and no %....need to deal with this...
-        '''
+        
     def specialprocessrow(dfrow):
         global stats
         NAs = [NA, 'nan', 'unch', 'Unch', 'no change']
@@ -112,12 +109,6 @@ def processframe(econdf):
         if dfrow['Statistic'] == 'Continuing Claims' and dfrow['Actual'] == '3.698K': dfrow['Actual'] = '3698K'
         if dfrow['Statistic'] == 'Building Permits' and dfrow['Actual'] == '1.669K': dfrow['Actual'] = '1.669M'
         
-        '''if '%' in dfrow['Actual']:
-            if dfrow['Statistic'] in stats:
-                stats[dfrow['Statistic']] += 1
-            else:
-                stats[dfrow['Statistic']] = 1'''
-
         return dfrow
 
     # additional helper functions
