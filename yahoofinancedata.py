@@ -28,7 +28,7 @@ import pandas.io.data as web
 from pandas.tseries.offsets import BDay
 from datetime import datetime
 
-
+stats = {}
 def econdata(startyear=2001, endyear=2015):
     f = open('econdata.tsv', 'w')
     f.write('\t'.join(['Year','Week','Date','Time (ET)','Statistic','For','Actual','Briefing Forecast','Market Expects','Prior','Revised\n']))
@@ -58,10 +58,12 @@ def processframe(econdf):
         if element[-1].upper() == 'K' and (element[-2].isdigit() or element[-3].isdigit()): return float(element[:-1]) * 1000
         elif element[-1].upper() == 'M' and (element[-2].isdigit() or element[-3].isdigit()): return float(element[:-1]) * 1000000
         elif element[-1].upper() == 'B' and (element[-2].isdigit() or element[-3].isdigit()): return float(element[:-1]) * 1000000000
+        elif 'mln' in element: return float(element[:-3]) * 1000000
+        elif 'bln' in element: return float(element[:-3]) * 1000000000
         elif element == '0.00%-0.25%' or element == '0-0.25%' or element == '0.00% -0.25%': return 0.25
         elif element[-2:] == '.%' or element[-2:] == '%%': return float(element[:-2])
         elif element[-1] == '%': return float(element[:-1]) if len(element) > 3 and element[-3] != ',' else float(element.replace(',','.')[:-1])
-        elif element == '-' or element == '--' or element == '---' or element == 'nan' or element == 'Unch' or element == 'unch': return NA
+        elif element == '-' or element == '--' or element == '---' or element == 'nan' or element == 'Unch' or element == 'unch' or element == 'no change' or element == 'DELAYED' or element == 'DATE TBA': return NA
         elif element == 'ADP Employment' or element == 'ADP Employment Report': return 'ADP Employment Change'
         elif element == 'Case Shiller 20 City Index' or element == 'Case-Shiller 20 City' or element == 'Case-Shiller 20-city Index (y/y)' or element == 'Case-Shiller Housing Price Index' or element == 'CaseShiller 20 City' or element == 'CaseShiller Home Price Index' or element == 'S&P;/Case-Shiller Home Price Index' or element == 'S&P;/CaseShiller Composite' or element == 'S&P;/CaseShiller Home Price Index': return 'Case-Shiller 20-city Index'
         elif element == 'Core PCE Inflation' or element == 'PCE Prices' or element == 'Core PCE': return 'PCE Prices - Core'
@@ -83,6 +85,40 @@ def processframe(econdf):
         -current account balance...some of them come up as on the order of 1e2 and most are on the order of 1e11
         -some of the items with % end up switching between % and no %....need to deal with this...
         '''
+    def specialprocessrow(dfrow):
+        global stats
+        NAs = [NA, 'nan', 'unch', 'Unch', 'no change']
+
+        if dfrow['Statistic'] in ['Trade Balance', 'Current Account', 'Current Account Balance', 'Consumer Credit', 'Treasury Budget', 'Trsy Budget']:
+            if dfrow['Actual'] not in NAs and len(str(dfrow['Actual'])) > 1 and str(dfrow['Actual'])[-1] != 'B' and str(dfrow['Actual'])[-1] != 'M' and str(dfrow['Actual'])[-1] != '-': dfrow['Actual'] = str(dfrow['Actual']) + 'B'
+            if dfrow['Briefing Forecast'] not in NAs and len(str(dfrow['Briefing Forecast'])) > 1 and str(dfrow['Briefing Forecast'])[-1] != 'B' and str(dfrow['Briefing Forecast'])[-1] != 'M' and str(dfrow['Briefing Forecast'])[-1] != '-': dfrow['Briefing Forecast'] = str(dfrow['Briefing Forecast']) + 'B'
+            if dfrow['Market Expects'] not in NAs and len(str(dfrow['Market Expects'])) > 1 and str(dfrow['Market Expects'])[-1] != 'B' and str(dfrow['Market Expects'])[-1] != 'M' and str(dfrow['Market Expects'])[-1] != '-': dfrow['Market Expects'] = str(dfrow['Market Expects']) + 'B'
+            if dfrow['Revised'] not in NAs and len(str(dfrow['Revised'])) > 1 and str(dfrow['Revised'])[-1] != 'B' and str(dfrow['Revised'])[-1] != 'M' and str(dfrow['Revised'])[-1] != '-': dfrow['Revised'] = str(dfrow['Revised']) + 'B'
+
+        if dfrow['Statistic'] in ['Initial Claims', 'Housing Starts', 'New Home Sales']:
+            if dfrow['Actual'] not in NAs and len(str(dfrow['Actual'])) > 1 and str(dfrow['Actual']).upper()[-1] != 'K' and str(dfrow['Actual']).upper()[-1] != 'M' and str(dfrow['Actual'])[-1] != '-': dfrow['Actual'] = str(dfrow['Actual']) + 'K'
+            if dfrow['Briefing Forecast'] not in NAs and len(str(dfrow['Briefing Forecast'])) > 1 and str(dfrow['Briefing Forecast']).upper()[-1] != 'K' and str(dfrow['Briefing Forecast']).upper()[-1] != 'M' and str(dfrow['Briefing Forecast'])[-1] != '-': dfrow['Briefing Forecast'] = str(dfrow['Briefing Forecast']) + 'K'
+            if dfrow['Market Expects'] not in NAs and len(str(dfrow['Market Expects'])) > 1 and str(dfrow['Market Expects']).upper()[-1] != 'K' and str(dfrow['Market Expects']).upper()[-1] != 'M' and str(dfrow['Market Expects'])[-1] != '-': dfrow['Market Expects'] = str(dfrow['Market Expects']) + 'K'
+            if dfrow['Revised'] not in NAs and len(str(dfrow['Revised'])) > 1 and str(dfrow['Revised']).upper()[-1] != 'K' and str(dfrow['Revised']).upper()[-1] != 'M' and str(dfrow['Revised'])[-1] != '-': dfrow['Revised'] = str(dfrow['Revised']) + 'K'
+
+        if dfrow['Statistic'] in ['Retail Sales']:
+            try:
+                if abs(float(dfrow['Actual'])) >= 100: dfrow['Actual'] = float(dfrow['Actual']) / 100
+                if abs(float(dfrow['Briefing Forecast'])) >= 100: dfrow['Briefing Forecast'] = float(dfrow['Briefing Forecast']) / 100
+                if abs(float(dfrow['Market Expects'])) >= 100: dfrow['Market Expects'] = float(dfrow['Market Expects']) / 100
+                if abs(float(dfrow['Revised'])) >= 100: dfrow['Revised'] = float(dfrow['Revised']) / 100
+            except: pass
+
+        if dfrow['Statistic'] == 'Continuing Claims' and dfrow['Actual'] == '3.698K': dfrow['Actual'] = '3698K'
+        if dfrow['Statistic'] == 'Building Permits' and dfrow['Actual'] == '1.669K': dfrow['Actual'] = '1.669M'
+        
+        '''if '%' in dfrow['Actual']:
+            if dfrow['Statistic'] in stats:
+                stats[dfrow['Statistic']] += 1
+            else:
+                stats[dfrow['Statistic']] = 1'''
+
+        return dfrow
 
     # additional helper functions
     '''
@@ -94,7 +130,8 @@ def processframe(econdf):
         # close should refer to yesterday's date otherwise refer to date of event
     
     # apply helper functions
-    df = econdf.applymap(processelement)
+    df = econdf.apply(specialprocessrow, axis=1)
+    df = df.applymap(processelement)
     df['close date before event'] = df.apply(getclosebeforedate, axis=1)
     df['open date after event'] = df.apply(getopenafterdate, axis=1)
     
@@ -132,8 +169,13 @@ def processframe(econdf):
     # remove the closes from the features
     X = X[['Actual', 'Briefing Forecast', 'Market Expects', 'Revised']]
     #X, y, y_adj = normalize(X), normalize(y), normalize(y_adj)
+    X = X.applymap(abs)
+    
+
+
     X['Statistic'] = merged['Statistic']
     X['Date'] = merged['Date']
+    X['Year'] = merged['Year']
     return X, y, y_adj
 
     
@@ -142,22 +184,18 @@ X, y, y_adj = processframe(pd.read_table('econdata.tsv'))
 #print(X)
 #print(y)
 #print(y_adj)
-group = X.groupby(['Statistic'])['Statistic']
+group = X.groupby(['Statistic'])[['Actual', 'Briefing Forecast', 'Market Expects', 'Revised']]
 for k, gp in group:
-    print(k)
+        print('max = ' + str(gp.max()) + '\n')
+        print('min = ' + str(gp.min()) + '\n')
+        print('mean = ' + str(gp.mean()) + '\n')
+        print('median = ' + str(gp.median()) + '\n')
+        print('\n\n\n')
 #print(group.value_counts())
+'''for k, v in sorted(stats.items()):
+    print(k, v)
+X = X[(X['Statistic'] == 'Retail Sales') & (('%' not in X['Actual']) | ('%' not in X['Briefing Forecast']) | ('%' not in X['Market Expects']) | ('%' not in X['Revised']))]
+#X = X[(X['Statistic'] == 'Retail Sales') & (('%' in X['Actual']) | ('%' in X['Briefing Forecast']) | ('%' in X['Market Expects']) | ('%' in X['Revised']))]
+print(X)'''
 
 #print(X[X['Statistic'] == 'Mich Sentiment- Final'])
-#print(X[X['Statistic'] == 'Mich Sentiment-Rev.'])
-#print(X[X['Statistic'] == 'Mich Sentiment-Prel.'])
-'''print(X[X['Statistic'] == 'Durable Orders -ex Auto'])
-print(X[X['Statistic'] == 'Durable Orders -ex Transporation'])
-print(X[X['Statistic'] == 'Durable Orders -ex Transportation'])
-print(X[X['Statistic'] == 'Durable Orders ex Auto'])
-print(X[X['Statistic'] == 'Durable Orders ex Transporation'])
-print(X[X['Statistic'] == 'Durable Orders ex Transportation'])
-print(X[X['Statistic'] == 'Durable Orders ex auto'])
-print(X[X['Statistic'] == 'Durable Orders ex transportation'])
-print(X[X['Statistic'] == 'Durable Orders, Ex-Auto'])
-print(X[X['Statistic'] == 'Durable Orders, Ex-Tran'])
-print(X[X['Statistic'] == 'Durable Orders, Ex-Transportation'])'''
