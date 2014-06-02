@@ -58,9 +58,9 @@ def processframe(econdf):
         if element[-1].upper() == 'K' and (element[-2].isdigit() or element[-3].isdigit()): return float(element[:-1]) * 1000
         elif element[-1].upper() == 'M' and (element[-2].isdigit() or element[-3].isdigit()): return float(element[:-1]) * 1000000
         elif element[-1].upper() == 'B' and (element[-2].isdigit() or element[-3].isdigit()): return float(element[:-1]) * 1000000000
-        elif element == '0.00%-0.25%' or element == '0-0.25%' or element == '0.00% -0.25%': return 0.25 / 100
-        elif element[-2:] == '.%' or element[-2:] == '%%': return float(element[:-2]) / 100
-        elif element[-1] == '%': return float(element[:-1]) / 100 if len(element) > 3 and element[-3] != ',' else float(element.replace(',','.')[:-1]) / 100
+        elif element == '0.00%-0.25%' or element == '0-0.25%' or element == '0.00% -0.25%': return 0.25
+        elif element[-2:] == '.%' or element[-2:] == '%%': return float(element[:-2])
+        elif element[-1] == '%': return float(element[:-1]) / 100 if len(element) > 3 and element[-3] != ',' else float(element.replace(',','.')[:-1])
         elif element == '-' or element == '--' or element == '---' or element == 'nan' or element == 'Unch' or element == 'unch': return NA
         elif element == 'ADP Employment' or element == 'ADP Employment Report': return 'ADP Employment Change'
         elif element == 'Case Shiller 20 City Index' or element == 'Case-Shiller 20 City' or element == 'Case-Shiller 20-city Index (y/y)' or element == 'Case-Shiller Housing Price Index' or element == 'CaseShiller 20 City' or element == 'CaseShiller Home Price Index' or element == 'S&P;/Case-Shiller Home Price Index' or element == 'S&P;/CaseShiller Composite' or element == 'S&P;/CaseShiller Home Price Index': return 'Case-Shiller 20-city Index'
@@ -75,6 +75,8 @@ def processframe(econdf):
         elif element == 'NAHB Market Housing Index': return 'NAHB Housing Market Index'
         elif element == 'Mich Sentiment-Rev': return 'Mich Sentiment-Rev.'
         elif element == 'FHFA Housing Price Index' or element == 'FHFA US Housing Price Index': return 'FHFA Home Price Index'
+        elif element == 'NAPM Index': return 'ISM Index'
+        elif element == 'NAPM Services': return 'ISM Services'
         else: return element
         '''
         -current account balance...some of them come up as on the order of 1e2 and most are on the order of 1e11
@@ -144,6 +146,9 @@ for item in group:
     print(item)
 #print(group.value_counts())
 
+#print(X[X['Statistic'] == 'Mich Sentiment- Final'])
+#print(X[X['Statistic'] == 'Mich Sentiment-Rev.'])
+#print(X[X['Statistic'] == 'Mich Sentiment-Prel.'])
 '''print(X[X['Statistic'] == 'Durable Orders -ex Auto'])
 print(X[X['Statistic'] == 'Durable Orders -ex Transporation'])
 print(X[X['Statistic'] == 'Durable Orders -ex Transportation'])
@@ -155,18 +160,3 @@ print(X[X['Statistic'] == 'Durable Orders ex transportation'])
 print(X[X['Statistic'] == 'Durable Orders, Ex-Auto'])
 print(X[X['Statistic'] == 'Durable Orders, Ex-Tran'])
 print(X[X['Statistic'] == 'Durable Orders, Ex-Transportation'])'''
-
-
-
-'''
-NAPM Index ??
-NAPM Services ??
-
-Mich Sentiment- Final ??
-
-GDP Deflator ??
-
-Unit Labor Costs
-Unit Labor Costs - Rev ??
-Unit Labor Costs -Prel ??
-'''
