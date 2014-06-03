@@ -54,6 +54,7 @@ def mktdata(startdate='1/1/2001', enddate='12/31/2014'):
 
 def processframe(econdf):
     NAs = [NA, 'nan', 'unch', 'Unch', 'no change', '-', '--', '---', 'DELAYED', 'DATE TBA', 'NA.']
+    marketdata = mktdata()
 
     def processelement(element):
         if not isinstance(element, str) or ':' in element: return str(element)
@@ -126,7 +127,6 @@ def processframe(econdf):
     NEED TO UPDATE NORMALIZE TO HANDLE NORMALIZE EACH COLUMN
     '''
     normalize = lambda df: (df - df.mean()) / (df.max() - df.min())
-    getopenafterdate = lambda dfrow: dfrow['close date before event'] + BDay(1)
     getclosebeforedate = lambda dfrow: datetime.strptime(dfrow['Date'] + ' ' + dfrow['Year'], '%b %d %Y') - BDay(1) if dfrow['Time (ET)'][-2:] == 'AM' else datetime.strptime(dfrow['Date'] + ' ' + dfrow['Year'], '%b %d %Y')
         # close should refer to yesterday's date otherwise refer to date of event
     
@@ -135,7 +135,6 @@ def processframe(econdf):
     df = df.applymap(processelement)
     df = df.apply(myfillna, axis=1)
     df['close date before event'] = df.apply(getclosebeforedate, axis=1)
-    df['open date after event'] = df.apply(getopenafterdate, axis=1)
     
     '''
     # merge market data with econ data
@@ -173,40 +172,70 @@ def processframe(econdf):
     y_adj.columns = ['r_Open_after', 'r_High_after', 'r_Low_after', 'r_Close_after', 'r_Adj Close_after']
     '''
 
-    X = df[['Actual', 'Briefing Forecast', 'Market Expects', 'Revised', 'close date before event', 'open date after event']]
-    X = X.applymap(lambda x: float(x) if isinstance(x, str) else x)
-    X[['Statistic', 'Date', 'Year']] = df[['Statistic', 'Date', 'Year']]
+    numdf = df[['Actual', 'Briefing Forecast', 'Market Expects', 'Revised', 'close date before event']]
+    numdf = numdf.applymap(lambda x: float(x) if isinstance(x, str) else x)
+    numdf[['Statistic', 'Date', 'Year']] = df[['Statistic', 'Date', 'Year']]
 
     # convert inputs for the Statistics to be percent change from briefing forecast or market expects to actual
-    X['Pct Diff From Briefing Forecast'] = (X['Actual'] - X['Briefing Forecast']) / X['Briefing Forecast']
-    X['Pct Diff From Market Expects'] = (X['Actual'] - X['Market Expects']) / X['Market Expects']
+    numdf['Pct Diff From Briefing Forecast'] = (numdf['Actual'] - numdf['Briefing Forecast']) / numdf['Briefing Forecast']
+    numdf['Pct Diff From Market Expects'] = (numdf['Actual'] - numdf['Market Expects']) / numdf['Market Expects']
 
-    # create list for each statistic (later initialize them to zero in new df)
-    statistics = [k for k, gp in X.groupby(['Statistic'])]
-    print(len(statistics))
     # remove the closes and non-percent-change features from the features
-    X_brief = X.copy()[['Pct Diff From Briefing Forecast', 'Statistic', 'Date', 'Year', 'close date before event', 'open date after event']]
-    X_mkt = X.copy()[['Pct Diff From Market Expects', 'Statistic', 'Date', 'Year', 'close date before event', 'open date after event']]
-    X_brief = X_brief.replace([np.inf, -np.inf], np.nan).dropna()
-    X_mkt = X_mkt.replace([np.inf, -np.inf], np.nan).dropna()
+    df_BF = numdf.copy()[['Pct Diff From Briefing Forecast', 'Statistic', 'Date', 'Year', 'close date before event']]
+    df_ME = numdf.copy()[['Pct Diff From Market Expects', 'Statistic', 'Date', 'Year', 'close date before event']]
+    df_BF = df_BF.replace([np.inf, -np.inf], np.nan).dropna()
+    df_ME = df_ME.replace([np.inf, -np.inf], np.nan).dropna()
 
+    # create list for the statistics, initialize them in the X df's to be zero
+    statistics = [k for k, gp in numdf.groupby(['Statistic'])]
+    X_BF = pd.DataFrame(columns=statistics, index=marketdata.index)
+    X_ME = pd.DataFrame(columns=statistics, index=marketdata.index)
 
-    group_brief = X_brief.groupby(['close date before event'])
-    group_mkt = X_mkt.groupby(['close date before event'])
+    # group by close date before event and loop through groups to enter statistic values
+    group_BF = df_BF.groupby(['close date before event'])
+    group_ME = df_ME.groupby(['close date before event'])
+
+    for date, gp in group_BF:
+        for statistic in gp['Statistic']:
+            X_BF.ix[date, statistic] = [val for val in gp[gp['Statistic'] == statistic]['Pct Diff From Briefing Forecast']][0]
+
+    for date, gp in group_ME:
+        for statistic in gp['Statistic']:
+            X_ME.ix[date, statistic] = [val for val in gp[gp['Statistic'] == statistic]['Pct Diff From Market Expects']][0]
+    
+    # drop rows that are all NA (no statistic entered for those dates)
+    X_BF = X_BF.dropna(axis=1, how='all')
+    X_ME = X_ME.dropna(axis=1, how='all')
+
+    # fill in zeros for NA values
+    '''
+    MAY NEED TO FILL THESE AFTER DOING NORMALIZATION
+    '''
+    X_BF = X_BF.fillna(value=0)
+    X_ME = X_ME.fillna(value=0)
+
+    # add open date after event
+    getopenafterdate = lambda dfrow: dfrow['close date before event'] + BDay(1)
+    X_BF['close date before event'] = X_BF.index
+    X_ME['close date before event'] = X_ME.index
+    X_BF['open date after event'] = X_BF.apply(getopenafterdate, axis=1)
+    X_ME['open date after event'] = X_ME.apply(getopenafterdate, axis=1)
+
 
     #X, y, y_adj = normalize(X), normalize(y), normalize(y_adj)
     #X = X.applymap(abs)
     
-    return X_brief, X_mkt#, y, y_adj
+    return X_BF, X_ME#, y, y_adj
 
     
 #econdata(endyear=2002)
 #X_brief, X_mkt, y, y_adj = processframe(pd.read_table('econdata.tsv'))
 X_brief, X_mkt = processframe(pd.read_table('econdata.tsv'))
+print(X_mkt)
 #print(X)
 #print(y)
 #print(y_adj)
-group = X_brief.groupby(['Statistic'])[['Pct Diff From Briefing Forecast', 'Pct Diff From Market Expects']]
+#group = X_brief.groupby(['Statistic'])[['Pct Diff From Briefing Forecast', 'Pct Diff From Market Expects']]
 '''for k, gp in group:
     #print(k)
     print('max = ' + str(gp.max()) + '\n')
@@ -222,83 +251,3 @@ X = X[(X['Statistic'] == 'Retail Sales') & (('%' not in X['Actual']) | ('%' not 
 print(X)'''
 
 #print(X[X['Statistic'] == 'Help-Wanted Index'])
-
-
-
-
-##
-
-
-
-
-'''
-FULL LIST OF FEATURES TO ADD AS COLUMNS:
-
-
-ADP Employment Change
-Auto Sales
-Average Workweek
-Building Permits
-Business Inventories
-CPI
-Capacity Utilization
-Case-Shiller 20-city Index
-Chain Deflator-Adv.
-Chain Deflator-Final
-Chain Deflator-Prel.
-Chicago PMI
-Construction Spending
-Consumer Confidence
-Consumer Credit
-Continuing Claims
-Core CPI
-Core PPI
-Current Account
-Durable Goods -ex transportation
-Durable Orders
-Empire Manufacturing
-Employment Cost Index
-Existing Home Sales
-FHFA Home Price Index
-Factory Orders
-GDP Deflator
-GDP-Adv.
-GDP-Final
-GDP-Prel.
-Help-Wanted Index
-Hourly Earnings
-Housing Starts
-ISM Index
-ISM Services
-Industrial Production
-Initial Claims
-Leading Indicators
-Mich Sentiment- Final
-Mich Sentiment-Prel.
-Mich Sentiment-Rev.
-NAHB Housing Market Index
-Net Foreign Purchases
-Net Long-Term TIC Flows
-New Home Sales
-Nonfarm Payrolls
-Nonfarm Private Payrolls
-PCE Prices - Core
-PPI
-Pending Home Sales
-Personal Income
-Personal Spending
-Philadelphia Fed
-Productivity-Prel
-Productivity-Rev.
-Retail Sales
-Retail Sales ex-auto
-Trade Balance
-Treasury Budget
-Truck Sales
-Unemployment Rate
-Unit Labor Costs
-Unit Labor Costs - Rev
-Unit Labor Costs -Prel
-Wholesale Inventories
-
-'''
