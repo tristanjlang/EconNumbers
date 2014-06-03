@@ -136,42 +136,7 @@ def processframe(econdf):
     df = df.apply(myfillna, axis=1)
     df['close date before event'] = df.apply(getclosebeforedate, axis=1)
     
-    '''
-    # merge market data with econ data
-    merged = pd.merge(df, mktdata(), left_on='close date before event', right_index=True)
-    merged.columns = ['Year', 'Week', 'Date', 'Time (ET)', 'Statistic', 'For', 'Actual', 'Briefing Forecast', 'Market Expects', 'Prior', 'Revised', 'close date before event', 'open date after event', 'Open_before', 'High_before', 'Low_before', 'Close_before', 'Volume_before', 'Adj Close_before']
-    merged = pd.merge(merged, mktdata(), left_on='open date after event', right_index=True)
-    merged.columns = ['Year', 'Week', 'Date', 'Time (ET)', 'Statistic', 'For', 'Actual', 'Briefing Forecast', 'Market Expects', 'Prior', 'Revised', 'close date before event', 'open date after event', 'Open_before', 'High_before', 'Low_before', 'Close_before', 'Volume_before', 'Adj Close_before', 'Open_after', 'High_after', 'Low_after', 'Close_after', 'Volume_after', 'Adj Close_after']
-    merged = merged[merged['Market Expects'] != 'nan'].dropna()
-
-    # change to X and y and remove text-based features
-    X = merged[['Actual', 'Briefing Forecast', 'Market Expects', 'Revised', 'Close_before', 'Adj Close_before', 'close date before event', 'open date after event']]
-    y = merged[['Open_after', 'High_after', 'Low_after', 'Close_after', 'Adj Close_after']]
-    X = X.applymap(lambda x: float(x) if isinstance(x, str) else x)
-    X['Statistic'] = merged['Statistic']
-    X['Date'] = merged['Date']
-    X['Year'] = merged['Year']
-    
-    # separate out the output values based on the close or the adjusted close before the event
-    y_adj = y.copy()
-    y.is_copy = False
-
-    # convert nominal opens/closes after the event to returns on the close before the event
-    y['Open_after'] = y['Open_after'] / X['Close_before']
-    y['High_after'] = y['High_after'] / X['Close_before']
-    y['Low_after'] = y['Low_after'] / X['Close_before']
-    y['Close_after'] = y['Close_after'] / X['Close_before']
-    y['Adj Close_after'] = y['Adj Close_after'] / X['Close_before']
-    y.columns = ['r_Open_after', 'r_High_after', 'r_Low_after', 'r_Close_after', 'r_Adj Close_after']
-    
-    y_adj['Open_after'] = y_adj['Open_after'] / X['Adj Close_before']
-    y_adj['High_after'] = y_adj['High_after'] / X['Adj Close_before']
-    y_adj['Low_after'] = y_adj['Low_after'] / X['Adj Close_before']
-    y_adj['Close_after'] = y_adj['Close_after'] / X['Adj Close_before']
-    y_adj['Adj Close_after'] = y_adj['Adj Close_after'] / X['Adj Close_before']
-    y_adj.columns = ['r_Open_after', 'r_High_after', 'r_Low_after', 'r_Close_after', 'r_Adj Close_after']
-    '''
-
+    # convert strings that were not converted over to floats
     numdf = df[['Actual', 'Briefing Forecast', 'Market Expects', 'Revised', 'close date before event']]
     numdf = numdf.applymap(lambda x: float(x) if isinstance(x, str) else x)
     numdf[['Statistic', 'Date', 'Year']] = df[['Statistic', 'Date', 'Year']]
@@ -216,12 +181,68 @@ def processframe(econdf):
 
     # add open date after event
     getopenafterdate = lambda dfrow: dfrow['close date before event'] + BDay(1)
-    X_BF['close date before event'] = X_BF.index
-    X_ME['close date before event'] = X_ME.index
-    X_BF['open date after event'] = X_BF.apply(getopenafterdate, axis=1)
-    X_ME['open date after event'] = X_ME.apply(getopenafterdate, axis=1)
+    y_BF = pd.DataFrame(columns=['close date before event', 'open date after event'], index=X_BF.index)
+    y_ME = pd.DataFrame(columns=['close date before event', 'open date after event'], index=X_ME.index)
+    y_BF['close date before event'] = X_BF.index
+    y_ME['close date before event'] = X_ME.index
+    y_BF['open date after event'] = y_BF.apply(getopenafterdate, axis=1)
+    y_ME['open date after event'] = y_ME.apply(getopenafterdate, axis=1)
 
 
+    # merge market data with dates to get pertinent data for close before and open after for all the events of interest
+    y_merged_BF = pd.merge(y_BF, marketdata, left_on='close date before event', right_index=True)
+    y_merged_BF.columns = ['close date before event', 'open date after event', 'Open_before', 'High_before', 'Low_before', 'Close_before', 'Volume_before', 'Adj Close_before']
+    y_merged_BF = pd.merge(y_merged_BF, marketdata, left_on='open date after event', right_index=True)
+    y_merged_BF.columns = ['close date before event', 'open date after event', 'Open_before', 'High_before', 'Low_before', 'Close_before', 'Volume_before', 'Adj Close_before', 'Open_after', 'High_after', 'Low_after', 'Close_after', 'Volume_after', 'Adj Close_after']
+    
+    y_merged_ME = pd.merge(y_ME, marketdata, left_on='close date before event', right_index=True)
+    y_merged_ME.columns = ['close date before event', 'open date after event', 'Open_before', 'High_before', 'Low_before', 'Close_before', 'Volume_before', 'Adj Close_before']
+    y_merged_ME = pd.merge(y_merged_ME, marketdata, left_on='open date after event', right_index=True)
+    y_merged_ME.columns = ['close date before event', 'open date after event', 'Open_before', 'High_before', 'Low_before', 'Close_before', 'Volume_before', 'Adj Close_before', 'Open_after', 'High_after', 'Low_after', 'Close_after', 'Volume_after', 'Adj Close_after']
+    #merged = merged[merged['Market Expects'] != 'nan'].dropna()
+    #merged = merged[merged['Market Expects'] != 'nan'].dropna()
+
+    # keep only market numbers
+    y_BF = y_merged_BF[['Close_before', 'Adj Close_before', 'Open_after', 'High_after', 'Low_after', 'Close_after', 'Adj Close_after']]
+    y_ME = y_merged_ME[['Close_before', 'Adj Close_before', 'Open_after', 'High_after', 'Low_after', 'Close_after', 'Adj Close_after']]
+    
+    # separate out the output values based on the close or the adjusted close before the event
+    y_ME_adj, y_BF_adj = y_ME.copy(), y_BF.copy()
+    y_ME.is_copy, y_BF.is_copy = False, False
+
+    # convert nominal opens/closes after the event to returns on the close before the event
+    y_BF['Open_after'] = y_BF['Open_after'] / y_BF['Close_before']
+    y_BF['High_after'] = y_BF['High_after'] / y_BF['Close_before']
+    y_BF['Low_after'] = y_BF['Low_after'] / y_BF['Close_before']
+    y_BF['Close_after'] = y_BF['Close_after'] / y_BF['Close_before']
+    y_BF['Adj Close_after'] = y_BF['Adj Close_after'] / y_BF['Close_before']
+    y_BF = y_BF[['Open_after', 'High_after', 'Low_after', 'Close_after', 'Adj Close_after']]
+    y_BF.columns = ['r_Open_after', 'r_High_after', 'r_Low_after', 'r_Close_after', 'r_Adj Close_after']
+    
+    y_ME['Open_after'] = y_ME['Open_after'] / y_ME['Close_before']
+    y_ME['High_after'] = y_ME['High_after'] / y_ME['Close_before']
+    y_ME['Low_after'] = y_ME['Low_after'] / y_ME['Close_before']
+    y_ME['Close_after'] = y_ME['Close_after'] / y_ME['Close_before']
+    y_ME['Adj Close_after'] = y_ME['Adj Close_after'] / y_ME['Close_before']
+    y_ME = y_ME[['Open_after', 'High_after', 'Low_after', 'Close_after', 'Adj Close_after']]
+    y_ME.columns = ['r_Open_after', 'r_High_after', 'r_Low_after', 'r_Close_after', 'r_Adj Close_after']
+
+    y_BF_adj['Open_after'] = y_BF_adj['Open_after'] / y_BF_adj['Adj Close_before']
+    y_BF_adj['High_after'] = y_BF_adj['High_after'] / y_BF_adj['Adj Close_before']
+    y_BF_adj['Low_after'] = y_BF_adj['Low_after'] / y_BF_adj['Adj Close_before']
+    y_BF_adj['Close_after'] = y_BF_adj['Close_after'] / y_BF_adj['Adj Close_before']
+    y_BF_adj['Adj Close_after'] = y_BF_adj['Adj Close_after'] / y_BF_adj['Adj Close_before']
+    y_BF_adj = y_BF_adj[['Open_after', 'High_after', 'Low_after', 'Close_after', 'Adj Close_after']]
+    y_BF_adj.columns = ['r_Open_after', 'r_High_after', 'r_Low_after', 'r_Close_after', 'r_Adj Close_after']
+
+    y_ME_adj['Open_after'] = y_ME_adj['Open_after'] / y_ME_adj['Adj Close_before']
+    y_ME_adj['High_after'] = y_ME_adj['High_after'] / y_ME_adj['Adj Close_before']
+    y_ME_adj['Low_after'] = y_ME_adj['Low_after'] / y_ME_adj['Adj Close_before']
+    y_ME_adj['Close_after'] = y_ME_adj['Close_after'] / y_ME_adj['Adj Close_before']
+    y_ME_adj['Adj Close_after'] = y_ME_adj['Adj Close_after'] / y_ME_adj['Adj Close_before']
+    y_ME_adj = y_ME_adj[['Open_after', 'High_after', 'Low_after', 'Close_after', 'Adj Close_after']]
+    y_ME_adj.columns = ['r_Open_after', 'r_High_after', 'r_Low_after', 'r_Close_after', 'r_Adj Close_after']
+    
     #X, y, y_adj = normalize(X), normalize(y), normalize(y_adj)
     #X = X.applymap(abs)
     
@@ -231,7 +252,7 @@ def processframe(econdf):
 #econdata(endyear=2002)
 #X_brief, X_mkt, y, y_adj = processframe(pd.read_table('econdata.tsv'))
 X_brief, X_mkt = processframe(pd.read_table('econdata.tsv'))
-print(X_mkt)
+#print(X_mkt)
 #print(X)
 #print(y)
 #print(y_adj)
