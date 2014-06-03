@@ -83,6 +83,8 @@ def processframe(econdf):
         elif element == 'NAPM Index': return 'ISM Index'
         elif element == 'NAPM Services': return 'ISM Services'
         elif element in ['NY Empire State Index', 'Empire Manufacturing Index']: return 'Empire Manufacturing'
+        elif 'bcf' in element.lower(): return element[:-3]
+        elif 'bp' in element.lower(): return float(element[:-2]) / 100
         else: return element
         
     def specialprocessrow(dfrow):
@@ -135,6 +137,7 @@ def processframe(econdf):
     df['close date before event'] = df.apply(getclosebeforedate, axis=1)
     df['open date after event'] = df.apply(getopenafterdate, axis=1)
     
+    '''
     # merge market data with econ data
     merged = pd.merge(df, mktdata(), left_on='close date before event', right_index=True)
     merged.columns = ['Year', 'Week', 'Date', 'Time (ET)', 'Statistic', 'For', 'Actual', 'Briefing Forecast', 'Market Expects', 'Prior', 'Revised', 'close date before event', 'open date after event', 'Open_before', 'High_before', 'Low_before', 'Close_before', 'Volume_before', 'Adj Close_before']
@@ -143,7 +146,7 @@ def processframe(econdf):
     merged = merged[merged['Market Expects'] != 'nan'].dropna()
 
     # change to X and y and remove text-based features
-    X = merged[['Actual', 'Briefing Forecast', 'Market Expects', 'Revised', 'Close_before', 'Adj Close_before']]
+    X = merged[['Actual', 'Briefing Forecast', 'Market Expects', 'Revised', 'Close_before', 'Adj Close_before', 'close date before event', 'open date after event']]
     y = merged[['Open_after', 'High_after', 'Low_after', 'Close_after', 'Adj Close_after']]
     X = X.applymap(lambda x: float(x) if isinstance(x, str) else x)
     X['Statistic'] = merged['Statistic']
@@ -168,36 +171,49 @@ def processframe(econdf):
     y_adj['Close_after'] = y_adj['Close_after'] / X['Adj Close_before']
     y_adj['Adj Close_after'] = y_adj['Adj Close_after'] / X['Adj Close_before']
     y_adj.columns = ['r_Open_after', 'r_High_after', 'r_Low_after', 'r_Close_after', 'r_Adj Close_after']
+    '''
+
+    X = df[['Actual', 'Briefing Forecast', 'Market Expects', 'Revised', 'close date before event', 'open date after event']]
+    X = X.applymap(lambda x: float(x) if isinstance(x, str) else x)
+    X[['Statistic', 'Date', 'Year']] = df[['Statistic', 'Date', 'Year']]
 
     # convert inputs for the Statistics to be percent change from briefing forecast or market expects to actual
     X['Pct Diff From Briefing Forecast'] = (X['Actual'] - X['Briefing Forecast']) / X['Briefing Forecast']
     X['Pct Diff From Market Expects'] = (X['Actual'] - X['Market Expects']) / X['Market Expects']
 
+    # create list for each statistic (later initialize them to zero in new df)
+    statistics = [k for k, gp in X.groupby(['Statistic'])]
+    print(len(statistics))
     # remove the closes and non-percent-change features from the features
-    X_brief = X[['Pct Diff From Briefing Forecast', 'Statistic', 'Date', 'Year']]
-    X_mkt = X[['Pct Diff From Market Expects', 'Statistic', 'Date', 'Year']]
+    X_brief = X.copy()[['Pct Diff From Briefing Forecast', 'Statistic', 'Date', 'Year', 'close date before event', 'open date after event']]
+    X_mkt = X.copy()[['Pct Diff From Market Expects', 'Statistic', 'Date', 'Year', 'close date before event', 'open date after event']]
     X_brief = X_brief.replace([np.inf, -np.inf], np.nan).dropna()
     X_mkt = X_mkt.replace([np.inf, -np.inf], np.nan).dropna()
+
+
+    group_brief = X_brief.groupby(['close date before event'])
+    group_mkt = X_mkt.groupby(['close date before event'])
 
     #X, y, y_adj = normalize(X), normalize(y), normalize(y_adj)
     #X = X.applymap(abs)
     
-    return X_brief, X_mkt, y, y_adj
+    return X_brief, X_mkt#, y, y_adj
 
     
 #econdata(endyear=2002)
-X_brief, X_mkt, y, y_adj = processframe(pd.read_table('econdata.tsv'))
+#X_brief, X_mkt, y, y_adj = processframe(pd.read_table('econdata.tsv'))
+X_brief, X_mkt = processframe(pd.read_table('econdata.tsv'))
 #print(X)
 #print(y)
 #print(y_adj)
 group = X_brief.groupby(['Statistic'])[['Pct Diff From Briefing Forecast', 'Pct Diff From Market Expects']]
-for k, gp in group:
+'''for k, gp in group:
     #print(k)
     print('max = ' + str(gp.max()) + '\n')
     print('min = ' + str(gp.min()) + '\n')
     print('mean = ' + str(gp.mean()) + '\n')
     print('median = ' + str(gp.median()) + '\n')
-    print('\n\n\n')
+    print('\n\n\n')'''
 #print(group.value_counts())
 '''for k, v in sorted(stats.items()):
     print(k, v)
@@ -283,4 +299,6 @@ Unemployment Rate
 Unit Labor Costs
 Unit Labor Costs - Rev
 Unit Labor Costs -Prel
-Wholesale Inventories'''
+Wholesale Inventories
+
+'''
