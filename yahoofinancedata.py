@@ -126,7 +126,7 @@ def processframe(econdf):
     '''
     NEED TO UPDATE NORMALIZE TO HANDLE NORMALIZE EACH COLUMN
     '''
-    normalize = lambda df: (df - df.mean()) / (df.max() - df.min())
+    normalize = lambda dfcol: (dfcol - dfcol.mean()) / (dfcol.max() - dfcol.min())
     getclosebeforedate = lambda dfrow: datetime.strptime(dfrow['Date'] + ' ' + dfrow['Year'], '%b %d %Y') - BDay(1) if dfrow['Time (ET)'][-2:] == 'AM' else datetime.strptime(dfrow['Date'] + ' ' + dfrow['Year'], '%b %d %Y')
         # close should refer to yesterday's date otherwise refer to date of event
     
@@ -243,7 +243,8 @@ def processframe(econdf):
     y_ME_adj = y_ME_adj[['Open_after', 'High_after', 'Low_after', 'Close_after', 'Adj Close_after']]
     y_ME_adj.columns = ['r_Open_after', 'r_High_after', 'r_Low_after', 'r_Close_after', 'r_Adj Close_after']
     
-    #X, y, y_adj = normalize(X), normalize(y), normalize(y_adj)
+    X_BF, y_BF, y_BF_adj = X_BF.apply(normalize), y_BF.apply(normalize), y_BF_adj.apply(normalize)
+    X_ME, y_ME, y_ME_adj = X_ME.apply(normalize), y_ME.apply(normalize), y_ME_adj.apply(normalize)
     #X = X.applymap(abs)
     
     return X_BF, X_ME#, y, y_adj
