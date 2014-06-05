@@ -77,6 +77,9 @@ def processframe(econdf):
         elif element == 'Net Long-term TIC Flows': return 'Net Long-Term TIC Flows'
         elif element == 'Trsy Budget': return 'Treasury Budget'
         elif element == 'Unit Labor Costs - Preliminary': return 'Unit Labor Costs -Prel'
+        elif element in ['Unit Labor Costs - Rev', 'Unit Labor Costs - Rev.', 'Unit Labor Costs - Revised', 'Unit Labor Costs-Rev', 'Unit Labor Costs-Rev.']: return 'Unit Labor Costs -Rev'
+        elif element == 'University of Michigan Sentiment - Final': return 'U Michigan Consumer Sentiment - Final'
+        elif element == 'University of Michigan Sentiment': return 'U. Michigan Consumer Sentiment'
         elif element == 'Nonfarm Payrolls - Private': return 'Nonfarm Private Payrolls'
         elif element == 'NAHB Market Housing Index': return 'NAHB Housing Market Index'
         elif element == 'Mich Sentiment-Rev': return 'Mich Sentiment-Rev.'
@@ -123,10 +126,7 @@ def processframe(econdf):
         return dfrow
 
     # additional helper functions
-    '''
-    NEED TO UPDATE NORMALIZE TO HANDLE NORMALIZE EACH COLUMN
-    '''
-    normalize = lambda dfcol: (dfcol - dfcol.mean()) / (dfcol.max() - dfcol.min())
+    normalize = lambda dfcol: (dfcol - dfcol.mean()) / (dfcol.max() - dfcol.min()) if dfcol.max() != dfcol.min() else NA
     getclosebeforedate = lambda dfrow: datetime.strptime(dfrow['Date'] + ' ' + dfrow['Year'], '%b %d %Y') - BDay(1) if dfrow['Time (ET)'][-2:] == 'AM' else datetime.strptime(dfrow['Date'] + ' ' + dfrow['Year'], '%b %d %Y')
         # close should refer to yesterday's date otherwise refer to date of event
     
@@ -172,12 +172,10 @@ def processframe(econdf):
     X_BF = X_BF.dropna(axis=1, how='all')
     X_ME = X_ME.dropna(axis=1, how='all')
 
-    # fill in zeros for NA values
-    '''
-    MAY NEED TO FILL THESE AFTER DOING NORMALIZATION
-    '''
-    X_BF = X_BF.fillna(value=0)
-    X_ME = X_ME.fillna(value=0)
+    # normalize, then fill in zeros for NA values
+    X_BF, X_ME = X_BF.apply(normalize), X_ME.apply(normalize)
+    X_BF, X_ME = X_BF.fillna(value=0), X_ME.fillna(value=0)
+    print(X_BF)
 
     # add open date after event
     getopenafterdate = lambda dfrow: dfrow['close date before event'] + BDay(1)
@@ -243,8 +241,8 @@ def processframe(econdf):
     y_ME_adj = y_ME_adj[['Open_after', 'High_after', 'Low_after', 'Close_after', 'Adj Close_after']]
     y_ME_adj.columns = ['r_Open_after', 'r_High_after', 'r_Low_after', 'r_Close_after', 'r_Adj Close_after']
     
-    X_BF, y_BF, y_BF_adj = X_BF.apply(normalize), y_BF.apply(normalize), y_BF_adj.apply(normalize)
-    X_ME, y_ME, y_ME_adj = X_ME.apply(normalize), y_ME.apply(normalize), y_ME_adj.apply(normalize)
+    y_BF, y_BF_adj = y_BF.apply(normalize), y_BF_adj.apply(normalize)
+    y_ME, y_ME_adj = y_ME.apply(normalize), y_ME_adj.apply(normalize)
     #X = X.applymap(abs)
     
     return X_BF, X_ME#, y, y_adj
