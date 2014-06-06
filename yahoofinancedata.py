@@ -221,109 +221,11 @@ def processframe(econdf):
     # convert inputs for the Statistics to be percent change from briefing forecast or market expects to actual
     numdf['Pct Diff From Briefing Forecast'] = (numdf['Actual'] - numdf['Briefing Forecast']) / numdf['Briefing Forecast']
     numdf['Pct Diff From Market Expects'] = (numdf['Actual'] - numdf['Market Expects']) / numdf['Market Expects']
-
-    # remove the closes and non-percent-change features from the features
-    df_BF = numdf.copy()[['Pct Diff From Briefing Forecast', 'Statistic', 'Date', 'Year', 'close date before event']]
-    df_ME = numdf.copy()[['Pct Diff From Market Expects', 'Statistic', 'Date', 'Year', 'close date before event']]
-    df_BF = df_BF.replace([np.inf, -np.inf], np.nan).dropna()
-    df_ME = df_ME.replace([np.inf, -np.inf], np.nan).dropna()
-
-    # create list for the statistics, initialize them in the X df's to be zero
     statistics = [k for k, gp in numdf.groupby(['Statistic'])]
-    X_BF = pd.DataFrame(columns=statistics, index=marketdata.index)
-    X_ME = pd.DataFrame(columns=statistics, index=marketdata.index)
-
-    # group by close date before event and loop through groups to enter statistic values
-    group_BF = df_BF.groupby(['close date before event'])
-    group_ME = df_ME.groupby(['close date before event'])
-
-    for date, gp in group_BF:
-        for statistic in gp['Statistic']:
-            X_BF.ix[date, statistic] = [val for val in gp[gp['Statistic'] == statistic]['Pct Diff From Briefing Forecast']][0]
-
-    for date, gp in group_ME:
-        for statistic in gp['Statistic']:
-            X_ME.ix[date, statistic] = [val for val in gp[gp['Statistic'] == statistic]['Pct Diff From Market Expects']][0]
-    
-    # drop rows that are all NA (no statistic entered for those dates)
-    X_BF = X_BF.dropna(axis=1, how='all')
-    X_ME = X_ME.dropna(axis=1, how='all')
-
-    # normalize, then fill in zeros for NA values
-    X_BF, X_ME = X_BF.apply(normalize), X_ME.apply(normalize)
-    X_BF, X_ME = X_BF.fillna(value=0), X_ME.fillna(value=0)
-
-    # add open date after event
-    getopenafterdate = lambda dfrow: bdayoffset(marketdata, dfrow['close date before event'])
-    y_BF = pd.DataFrame(columns=['close date before event', 'open date after event'], index=X_BF.index)
-    y_ME = pd.DataFrame(columns=['close date before event', 'open date after event'], index=X_ME.index)
-    y_BF['close date before event'] = X_BF.index
-    y_ME['close date before event'] = X_ME.index
-    y_BF['open date after event'] = y_BF.apply(getopenafterdate, axis=1)
-    y_ME['open date after event'] = y_ME.apply(getopenafterdate, axis=1)
-
-
-    # merge market data with dates to get pertinent data for close before and open after for all the events of interest
-    y_merged_BF = pd.merge(y_BF, marketdata, left_on='close date before event', right_index=True)
-    y_merged_BF.columns = ['close date before event', 'open date after event', 'Open_before', 'High_before', 'Low_before', 'Close_before', 'Volume_before', 'Adj Close_before']
-    y_merged_BF = pd.merge(y_merged_BF, marketdata, left_on='open date after event', right_index=True, how='left')
-    print(y_merged_BF)
-    y_merged_BF.columns = ['close date before event', 'open date after event', 'Open_before', 'High_before', 'Low_before', 'Close_before', 'Volume_before', 'Adj Close_before', 'Open_after', 'High_after', 'Low_after', 'Close_after', 'Volume_after', 'Adj Close_after']
-    
-    y_merged_ME = pd.merge(y_ME, marketdata, left_on='close date before event', right_index=True)
-    y_merged_ME.columns = ['close date before event', 'open date after event', 'Open_before', 'High_before', 'Low_before', 'Close_before', 'Volume_before', 'Adj Close_before']
-    y_merged_ME = pd.merge(y_merged_ME, marketdata, left_on='open date after event', right_index=True)
-    y_merged_ME.columns = ['close date before event', 'open date after event', 'Open_before', 'High_before', 'Low_before', 'Close_before', 'Volume_before', 'Adj Close_before', 'Open_after', 'High_after', 'Low_after', 'Close_after', 'Volume_after', 'Adj Close_after']
-    #merged = merged[merged['Market Expects'] != 'nan'].dropna()
-    #merged = merged[merged['Market Expects'] != 'nan'].dropna()
-
-    # keep only market numbers
-    y_BF = y_merged_BF[['Close_before', 'Adj Close_before', 'Open_after', 'High_after', 'Low_after', 'Close_after', 'Adj Close_after']]
-    y_ME = y_merged_ME[['Close_before', 'Adj Close_before', 'Open_after', 'High_after', 'Low_after', 'Close_after', 'Adj Close_after']]
-    
-    # separate out the output values based on the close or the adjusted close before the event
-    y_ME_adj, y_BF_adj = y_ME.copy(), y_BF.copy()
-    y_ME.is_copy, y_BF.is_copy = False, False
-
-    # convert nominal opens/closes after the event to returns on the close before the event
-    y_BF['Open_after'] = y_BF['Open_after'] / y_BF['Close_before']
-    y_BF['High_after'] = y_BF['High_after'] / y_BF['Close_before']
-    y_BF['Low_after'] = y_BF['Low_after'] / y_BF['Close_before']
-    y_BF['Close_after'] = y_BF['Close_after'] / y_BF['Close_before']
-    y_BF['Adj Close_after'] = y_BF['Adj Close_after'] / y_BF['Close_before']
-    y_BF = y_BF[['Open_after', 'High_after', 'Low_after', 'Close_after', 'Adj Close_after']]
-    y_BF.columns = ['r_Open_after', 'r_High_after', 'r_Low_after', 'r_Close_after', 'r_Adj Close_after']
-    
-    y_ME['Open_after'] = y_ME['Open_after'] / y_ME['Close_before']
-    y_ME['High_after'] = y_ME['High_after'] / y_ME['Close_before']
-    y_ME['Low_after'] = y_ME['Low_after'] / y_ME['Close_before']
-    y_ME['Close_after'] = y_ME['Close_after'] / y_ME['Close_before']
-    y_ME['Adj Close_after'] = y_ME['Adj Close_after'] / y_ME['Close_before']
-    y_ME = y_ME[['Open_after', 'High_after', 'Low_after', 'Close_after', 'Adj Close_after']]
-    y_ME.columns = ['r_Open_after', 'r_High_after', 'r_Low_after', 'r_Close_after', 'r_Adj Close_after']
-
-    y_BF_adj['Open_after'] = y_BF_adj['Open_after'] / y_BF_adj['Adj Close_before']
-    y_BF_adj['High_after'] = y_BF_adj['High_after'] / y_BF_adj['Adj Close_before']
-    y_BF_adj['Low_after'] = y_BF_adj['Low_after'] / y_BF_adj['Adj Close_before']
-    y_BF_adj['Close_after'] = y_BF_adj['Close_after'] / y_BF_adj['Adj Close_before']
-    y_BF_adj['Adj Close_after'] = y_BF_adj['Adj Close_after'] / y_BF_adj['Adj Close_before']
-    y_BF_adj = y_BF_adj[['Open_after', 'High_after', 'Low_after', 'Close_after', 'Adj Close_after']]
-    y_BF_adj.columns = ['r_Open_after', 'r_High_after', 'r_Low_after', 'r_Close_after', 'r_Adj Close_after']
-
-    y_ME_adj['Open_after'] = y_ME_adj['Open_after'] / y_ME_adj['Adj Close_before']
-    y_ME_adj['High_after'] = y_ME_adj['High_after'] / y_ME_adj['Adj Close_before']
-    y_ME_adj['Low_after'] = y_ME_adj['Low_after'] / y_ME_adj['Adj Close_before']
-    y_ME_adj['Close_after'] = y_ME_adj['Close_after'] / y_ME_adj['Adj Close_before']
-    y_ME_adj['Adj Close_after'] = y_ME_adj['Adj Close_after'] / y_ME_adj['Adj Close_before']
-    y_ME_adj = y_ME_adj[['Open_after', 'High_after', 'Low_after', 'Close_after', 'Adj Close_after']]
-    y_ME_adj.columns = ['r_Open_after', 'r_High_after', 'r_Low_after', 'r_Close_after', 'r_Adj Close_after']
-    
-    y_BF, y_BF_adj = y_BF.apply(normalize), y_BF_adj.apply(normalize)
-    y_ME, y_ME_adj = y_ME.apply(normalize), y_ME_adj.apply(normalize)
     #X = X.applymap(abs)
 
-    #X_BF, y_BF, y_BF_adj = generate_input_output(statistics, marketdata, numdf, True)
-    #X_ME, y_ME, y_ME_adj = generate_input_output(statistics, marketdata, numdf, False)
+    X_BF, y_BF, y_BF_adj = generate_input_output(statistics, marketdata, numdf, True)
+    X_ME, y_ME, y_ME_adj = generate_input_output(statistics, marketdata, numdf, False)
     
     return X_BF, y_BF, y_BF_adj, X_ME, y_ME, y_ME_adj
 
@@ -336,7 +238,8 @@ X_brief, y_brief, y_brief_adj, X_mkt, y_mkt, y_mkt_adj = processframe(pd.read_ta
 #print('\n\n\n')
 #print(y_mkt.ix['2001-03-16'])
 #print(y_mkt.ix['2001-02-16'])
-'''print(y_brief)'''
+print(y_brief.ix['2001-02-16', ['r_Adj Close_after', 'r_Open_after']])
+print(y_mkt.ix['2001-02-16', ['r_Adj Close_after', 'r_Open_after']])
 #print(X)
 #print(y)
 #print(y_adj)
