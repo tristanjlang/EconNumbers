@@ -55,6 +55,24 @@ def mktdata(startdate='1/1/2001', enddate='12/31/2014'):
 def processframe(econdf):
     NAs = [NA, 'nan', 'unch', 'Unch', 'no change', '-', '--', '---', 'DELAYED', 'DATE TBA', 'NA.']
     marketdata = mktdata()
+    today = datetime.today()
+
+    def bdayoffset(df, date, increment=True):
+        n = 1
+        while date + BDay(n) < today:
+            if increment:
+                if date + BDay(n) not in df.index: n += 1
+                else: return date + BDay(n)
+            else:
+                if date - BDay(n) not in df.index: n += 1
+                else: return date - BDay(n)
+        return date + BDay(n)
+
+    # helper functions
+    getopenafterdate = lambda dfrow: bdayoffset(marketdata, dfrow['close date before event'])
+    normalize = lambda dfcol: (dfcol - dfcol.mean()) / (dfcol.max() - dfcol.min()) if dfcol.max() != dfcol.min() else NA
+    getclosebeforedate = lambda dfrow: bdayoffset(marketdata, datetime.strptime(dfrow['Date'] + ' ' + dfrow['Year'], '%b %d %Y'), -1) if dfrow['Time (ET)'][-2:] == 'AM' else datetime.strptime(dfrow['Date'] + ' ' + dfrow['Year'], '%b %d %Y')
+        # close should refer to yesterday's date otherwise refer to date of event
 
     def processelement(element):
         if not isinstance(element, str) or ':' in element: return str(element)
@@ -125,10 +143,69 @@ def processframe(econdf):
         if dfrow['Market Expects'] in NAs: dfrow['Market Expects'] = float(dfrow['Briefing Forecast'])
         return dfrow
 
-    # additional helper functions
-    normalize = lambda dfcol: (dfcol - dfcol.mean()) / (dfcol.max() - dfcol.min()) if dfcol.max() != dfcol.min() else NA
-    getclosebeforedate = lambda dfrow: datetime.strptime(dfrow['Date'] + ' ' + dfrow['Year'], '%b %d %Y') - BDay(1) if dfrow['Time (ET)'][-2:] == 'AM' else datetime.strptime(dfrow['Date'] + ' ' + dfrow['Year'], '%b %d %Y')
-        # close should refer to yesterday's date otherwise refer to date of event
+    def generate_input_output(statistics, marketdata, numdf, type_is_briefing_forecast=True):
+        stat_type = 'Pct Diff From Briefing Forecast' if type_is_briefing_forecast else 'Pct Diff From Market Expects'
+
+        # remove the closes and non-percent-change features from the features
+        df = numdf.copy()[[stat_type, 'Statistic', 'Date', 'Year', 'close date before event']]
+        df = df.replace([np.inf, -np.inf], np.nan).dropna()
+        
+        # initialize statistics in the X df's to be zero
+        X = pd.DataFrame(columns=statistics, index=marketdata.index)
+
+        # group by close date before event and loop through groups to enter statistic values
+        group = df.groupby(['close date before event'])
+    
+        for date, gp in group:
+            for statistic in gp['Statistic']:
+                X.ix[date, statistic] = [val for val in gp[gp['Statistic'] == statistic][stat_type]][0]
+
+        # drop rows that are all NA (no statistic entered for those dates)
+        X = X.dropna(axis=1, how='all')
+
+        # normalize, then fill in zeros for NA values
+        X = X.apply(normalize)
+        X = X.fillna(value=0)
+
+        # add open date after event
+        y = pd.DataFrame(columns=['close date before event', 'open date after event'], index=X.index)
+        y['close date before event'] = X.index
+        y['open date after event'] = y.apply(getopenafterdate, axis=1)
+
+        # merge market data with dates to get pertinent data for close before and open after for all the events of interest
+        y_merged = pd.merge(y, marketdata, left_on='close date before event', right_index=True)
+        y_merged.columns = ['close date before event', 'open date after event', 'Open_before', 'High_before', 'Low_before', 'Close_before', 'Volume_before', 'Adj Close_before']
+        y_merged = pd.merge(y_merged, marketdata, left_on='open date after event', right_index=True)
+        y_merged.columns = ['close date before event', 'open date after event', 'Open_before', 'High_before', 'Low_before', 'Close_before', 'Volume_before', 'Adj Close_before', 'Open_after', 'High_after', 'Low_after', 'Close_after', 'Volume_after', 'Adj Close_after']
+        
+        # keep only market numbers
+        y = y_merged[['Close_before', 'Adj Close_before', 'Open_after', 'High_after', 'Low_after', 'Close_after', 'Adj Close_after']]
+        
+        # separate out the output values based on the close or the adjusted close before the event
+        y_adj = y.copy()
+        y.is_copy = False
+
+        # convert nominal opens/closes after the event to returns on the close before the event
+        y['Open_after'] = y['Open_after'] / y['Close_before']
+        y['High_after'] = y['High_after'] / y['Close_before']
+        y['Low_after'] = y['Low_after'] / y['Close_before']
+        y['Close_after'] = y['Close_after'] / y['Close_before']
+        y['Adj Close_after'] = y['Adj Close_after'] / y['Close_before']
+        y = y[['Open_after', 'High_after', 'Low_after', 'Close_after', 'Adj Close_after']]
+        y.columns = ['r_Open_after', 'r_High_after', 'r_Low_after', 'r_Close_after', 'r_Adj Close_after']
+        
+        y_adj['Open_after'] = y_adj['Open_after'] / y_adj['Adj Close_before']
+        y_adj['High_after'] = y_adj['High_after'] / y_adj['Adj Close_before']
+        y_adj['Low_after'] = y_adj['Low_after'] / y_adj['Adj Close_before']
+        y_adj['Close_after'] = y_adj['Close_after'] / y_adj['Adj Close_before']
+        y_adj['Adj Close_after'] = y_adj['Adj Close_after'] / y_adj['Adj Close_before']
+        y_adj = y_adj[['Open_after', 'High_after', 'Low_after', 'Close_after', 'Adj Close_after']]
+        y_adj.columns = ['r_Open_after', 'r_High_after', 'r_Low_after', 'r_Close_after', 'r_Adj Close_after']
+
+        y, y_adj = y.apply(normalize), y_adj.apply(normalize)
+        
+        return X, y, y_adj
+
     
     # apply helper functions
     df = econdf.apply(specialprocessrow, axis=1)
@@ -175,10 +252,9 @@ def processframe(econdf):
     # normalize, then fill in zeros for NA values
     X_BF, X_ME = X_BF.apply(normalize), X_ME.apply(normalize)
     X_BF, X_ME = X_BF.fillna(value=0), X_ME.fillna(value=0)
-    print(X_BF)
 
     # add open date after event
-    getopenafterdate = lambda dfrow: dfrow['close date before event'] + BDay(1)
+    getopenafterdate = lambda dfrow: bdayoffset(marketdata, dfrow['close date before event'])
     y_BF = pd.DataFrame(columns=['close date before event', 'open date after event'], index=X_BF.index)
     y_ME = pd.DataFrame(columns=['close date before event', 'open date after event'], index=X_ME.index)
     y_BF['close date before event'] = X_BF.index
@@ -190,7 +266,8 @@ def processframe(econdf):
     # merge market data with dates to get pertinent data for close before and open after for all the events of interest
     y_merged_BF = pd.merge(y_BF, marketdata, left_on='close date before event', right_index=True)
     y_merged_BF.columns = ['close date before event', 'open date after event', 'Open_before', 'High_before', 'Low_before', 'Close_before', 'Volume_before', 'Adj Close_before']
-    y_merged_BF = pd.merge(y_merged_BF, marketdata, left_on='open date after event', right_index=True)
+    y_merged_BF = pd.merge(y_merged_BF, marketdata, left_on='open date after event', right_index=True, how='left')
+    print(y_merged_BF)
     y_merged_BF.columns = ['close date before event', 'open date after event', 'Open_before', 'High_before', 'Low_before', 'Close_before', 'Volume_before', 'Adj Close_before', 'Open_after', 'High_after', 'Low_after', 'Close_after', 'Volume_after', 'Adj Close_after']
     
     y_merged_ME = pd.merge(y_ME, marketdata, left_on='close date before event', right_index=True)
@@ -244,14 +321,22 @@ def processframe(econdf):
     y_BF, y_BF_adj = y_BF.apply(normalize), y_BF_adj.apply(normalize)
     y_ME, y_ME_adj = y_ME.apply(normalize), y_ME_adj.apply(normalize)
     #X = X.applymap(abs)
+
+    #X_BF, y_BF, y_BF_adj = generate_input_output(statistics, marketdata, numdf, True)
+    #X_ME, y_ME, y_ME_adj = generate_input_output(statistics, marketdata, numdf, False)
     
-    return X_BF, X_ME#, y, y_adj
+    return X_BF, y_BF, y_BF_adj, X_ME, y_ME, y_ME_adj
 
     
 #econdata(endyear=2002)
 #X_brief, X_mkt, y, y_adj = processframe(pd.read_table('econdata.tsv'))
-X_brief, X_mkt = processframe(pd.read_table('econdata.tsv'))
-#print(X_mkt)
+X_brief, y_brief, y_brief_adj, X_mkt, y_mkt, y_mkt_adj = processframe(pd.read_table('econdata.tsv'))
+#print(y_brief.ix['2001-03-16'])
+#print(y_brief.ix['2001-02-16'])
+#print('\n\n\n')
+#print(y_mkt.ix['2001-03-16'])
+#print(y_mkt.ix['2001-02-16'])
+'''print(y_brief)'''
 #print(X)
 #print(y)
 #print(y_adj)
