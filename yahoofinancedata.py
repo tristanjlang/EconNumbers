@@ -285,6 +285,10 @@ regr = LinearRegression()#Ridge(alpha=0.5)
 #print(y_brief_train)
 #print(newx)
 #print(newy)
+
+assert not np.any(np.isnan(X_brief_train) | np.isinf(X_brief_train))
+assert not np.any(np.isnan(y_brief_train) | np.isinf(y_brief_train))
+
 print(X_brief_train.applymap(lambda x: not isinstance(x, float)).sum().sum())
 #print(X_brief_train.values.shape, y_brief_train['r_Open_after'].values.shape)
 regr.fit(X_brief_train.values, y_brief_train['r_Open_after'].values)
