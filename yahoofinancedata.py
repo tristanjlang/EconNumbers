@@ -28,8 +28,13 @@ import pandas as pd
 import pandas.io.data as web
 from pandas.tseries.offsets import BDay
 from datetime import datetime
+from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import Ridge
+from sklearn.linear_model import Lasso
+from sklearn.cross_validation import train_test_split
+from scipy.sparse import csr_matrix
 
-stats = {}
+
 def econdata(startyear=2001, endyear=2015):
     f = open('econdata.tsv', 'w')
     f.write('\t'.join(['Year','Week','Date','Time (ET)','Statistic','For','Actual','Briefing Forecast','Market Expects','Prior','Revised\n']))
@@ -265,3 +270,31 @@ y_mkt_adj_train, y_mkt_adj_cv, y_mkt_adj_test = training_validation_testing_sets
 NEXT STEPS:
 -scikit learn and perform linear regression with regularization
 '''
+# Create linear regression object
+regr = LinearRegression()#Ridge(alpha=0.5)
+
+
+#print((X_brief_train in [NA, np.inf, -np.inf]).sum().sum())
+#print((y_brief_train in [NA, np.inf, -np.inf]).sum().sum())
+
+# Train the model using the training sets))
+#print(X_brief_train.values)
+#newx = csr_matrix(X_brief_train.values)
+#newy = csr_matrix(y_brief_train['r_Open_after'].values)
+
+#print(y_brief_train)
+#print(newx)
+#print(newy)
+print(X_brief_train.applymap(lambda x: not isinstance(x, float)).sum().sum())
+#print(X_brief_train.values.shape, y_brief_train['r_Open_after'].values.shape)
+regr.fit(X_brief_train.values, y_brief_train['r_Open_after'].values)
+
+# The coefficients
+print('Coefficients: \n', regr.coef_)
+
+# The mean square error
+#print("Residual sum of squares: %.2f" % np.mean((regr.predict(X_brief_cv.values) - y_brief_cv['r_Open_after'].values) ** 2))
+print(regr.predict(X_brief_cv.values))
+# Explained variance score: 1 is perfect prediction
+print('Variance score: %.2f' % regr.score(X_brief_cv.values, y_brief_cv['r_Open_after'].values))
+
