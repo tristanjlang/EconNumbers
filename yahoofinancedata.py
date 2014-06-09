@@ -206,7 +206,6 @@ def processframe(econdf):
         
         return X, y, y_adj
 
-    
     # apply helper functions
     df = econdf.apply(specialprocessrow, axis=1)
     df = df.applymap(processelement)
@@ -230,32 +229,39 @@ def processframe(econdf):
     return X_BF, y_BF, y_BF_adj, X_ME, y_ME, y_ME_adj
 
     
-#econdata(endyear=2002)
-#X_brief, X_mkt, y, y_adj = processframe(pd.read_table('econdata.tsv'))
-X_brief, y_brief, y_brief_adj, X_mkt, y_mkt, y_mkt_adj = processframe(pd.read_table('econdata.tsv'))
-#print(y_brief.ix['2001-03-16'])
-#print(y_brief.ix['2001-02-16'])
-#print('\n\n\n')
-#print(y_mkt.ix['2001-03-16'])
-#print(y_mkt.ix['2001-02-16'])
-print(y_brief.ix['2001-02-16', ['r_Adj Close_after', 'r_Open_after']])
-print(y_mkt.ix['2001-02-16', ['r_Adj Close_after', 'r_Open_after']])
-#print(X)
-#print(y)
-#print(y_adj)
-#group = X_brief.groupby(['Statistic'])[['Pct Diff From Briefing Forecast', 'Pct Diff From Market Expects']]
-'''for k, gp in group:
-    #print(k)
-    print('max = ' + str(gp.max()) + '\n')
-    print('min = ' + str(gp.min()) + '\n')
-    print('mean = ' + str(gp.mean()) + '\n')
-    print('median = ' + str(gp.median()) + '\n')
-    print('\n\n\n')'''
-#print(group.value_counts())
-'''for k, v in sorted(stats.items()):
-    print(k, v)
-X = X[(X['Statistic'] == 'Retail Sales') & (('%' not in X['Actual']) | ('%' not in X['Briefing Forecast']) | ('%' not in X['Market Expects']) | ('%' not in X['Revised']))]
-#X = X[(X['Statistic'] == 'Retail Sales') & (('%' in X['Actual']) | ('%' in X['Briefing Forecast']) | ('%' in X['Market Expects']) | ('%' in X['Revised']))]
-print(X)'''
+# returns training data set, cross validation data set, testing data set
+def training_validation_testing_sets(df):
+    trainingsize = int(len(df) * 0.6)
+    validationsize = int(len(df) * 0.2) + trainingsize
+    testingsize = len(df) - validationsize
+    return df.ix[:trainingsize], df.ix[trainingsize : validationsize], df.ix[-testingsize:]
 
-#print(X[X['Statistic'] == 'Help-Wanted Index'])
+
+#econdata(endyear=2002)
+X_brief, y_brief, y_brief_adj, X_mkt, y_mkt, y_mkt_adj = processframe(pd.read_table('econdata.tsv'))
+
+
+# randomly sort X and y dataframes together
+X_brief = X_brief.reindex(np.random.permutation(X_brief.index))
+y_brief = y_brief.reindex(X_brief.index)
+y_brief_adj = y_brief_adj.reindex(X_brief.index)
+
+X_mkt = X_mkt.reindex(np.random.permutation(X_mkt.index))
+y_mkt = y_mkt.reindex(X_mkt.index)
+y_mkt_adj = y_mkt_adj.reindex(X_mkt.index)
+
+
+# break into training, cross validation, and testing data sets
+X_brief_train, X_brief_cv, X_brief_test = training_validation_testing_sets(X_brief)
+y_brief_train, y_brief_cv, y_brief_test = training_validation_testing_sets(y_brief)
+y_brief_adj_train, y_brief_adj_cv, y_brief_adj_test = training_validation_testing_sets(y_brief_adj)
+
+X_mkt_train, X_mkt_cv, X_mkt_test = training_validation_testing_sets(X_mkt)
+y_mkt_train, y_mkt_cv, y_mkt_test = training_validation_testing_sets(y_mkt)
+y_mkt_adj_train, y_mkt_adj_cv, y_mkt_adj_test = training_validation_testing_sets(y_mkt_adj)
+
+
+'''
+NEXT STEPS:
+-scikit learn and perform linear regression with regularization
+'''
