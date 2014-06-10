@@ -273,12 +273,22 @@ NEXT STEPS:
 regr = Ridge(alpha=0.5)
 
 # Train the model using the training sets
-errors = y_brief_train['r_Open_after'][y_brief_train['r_Open_after'].apply(lambda x: np.isnan(x))]
 
 # drop errors
+errors = y_brief_train['r_Open_after'][y_brief_train['r_Open_after'].apply(lambda x: np.isnan(x))]
 X_brief_train = X_brief_train.drop(errors.index)
 y_brief_train = y_brief_train.drop(errors.index)
 y_brief_adj_train = y_brief_adj_train.drop(errors.index)
+
+errors = y_brief_cv['r_Open_after'][y_brief_cv['r_Open_after'].apply(lambda x: np.isnan(x))]
+X_brief_cv = X_brief_cv.drop(errors.index)
+y_brief_cv = y_brief_cv.drop(errors.index)
+y_brief_adj_cv = y_brief_adj_cv.drop(errors.index)
+
+errors = y_brief_test['r_Open_after'][y_brief_test['r_Open_after'].apply(lambda x: np.isnan(x))]
+X_brief_test = X_brief_test.drop(errors.index)
+y_brief_test = y_brief_test.drop(errors.index)
+y_brief_adj_test = y_brief_adj_test.drop(errors.index)
 
 #assert not np.any(np.isnan(X_brief_train) | np.isinf(X_brief_train))
 #assert not np.any(np.isnan(y_brief_train['r_Open_after']))
