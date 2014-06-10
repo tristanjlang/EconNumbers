@@ -69,14 +69,14 @@ def processframe(econdf):
                 if date + BDay(n) not in df.index: n += 1
                 else: return date + BDay(n)
             else:
-                if date - BDay(n) not in df.index: n += 1
+                if date - BDay(n) not in df.index: n -= 1
                 else: return date - BDay(n)
         return date + BDay(n)
 
     # helper functions
     getopenafterdate = lambda dfrow: bdayoffset(marketdata, dfrow['close date before event'])
     normalize = lambda dfcol: (dfcol - dfcol.mean()) / (dfcol.max() - dfcol.min()) if dfcol.max() != dfcol.min() else NA
-    getclosebeforedate = lambda dfrow: bdayoffset(marketdata, datetime.strptime(dfrow['Date'] + ' ' + dfrow['Year'], '%b %d %Y'), -1) if dfrow['Time (ET)'][-2:] == 'AM' else datetime.strptime(dfrow['Date'] + ' ' + dfrow['Year'], '%b %d %Y')
+    getclosebeforedate = lambda dfrow: bdayoffset(marketdata, datetime.strptime(dfrow['Date'] + ' ' + dfrow['Year'], '%b %d %Y'), False) if dfrow['Time (ET)'][-2:] == 'AM' else datetime.strptime(dfrow['Date'] + ' ' + dfrow['Year'], '%b %d %Y')
         # close should refer to yesterday's date otherwise refer to date of event
 
     def processelement(element):
@@ -208,7 +208,6 @@ def processframe(econdf):
         y_adj.columns = ['r_Open_after', 'r_High_after', 'r_Low_after', 'r_Close_after', 'r_Adj Close_after']
 
         y, y_adj = y.apply(normalize), y_adj.apply(normalize)
-        
         return X, y, y_adj
 
     # apply helper functions
@@ -272,7 +271,7 @@ NEXT STEPS:
 '''
 # Create linear regression object
 regr = LinearRegression()#Ridge(alpha=0.5)
-
+#print(y_brief_train)
 
 #print((X_brief_train in [NA, np.inf, -np.inf]).sum().sum())
 #print((y_brief_train in [NA, np.inf, -np.inf]).sum().sum())
@@ -282,23 +281,32 @@ regr = LinearRegression()#Ridge(alpha=0.5)
 #newx = csr_matrix(X_brief_train.values)
 #newy = csr_matrix(y_brief_train['r_Open_after'].values)
 
-#print(y_brief_train)
-#print(newx)
-#print(newy)
 
-assert not np.any(np.isnan(X_brief_train) | np.isinf(X_brief_train))
-assert not np.any(np.isnan(y_brief_train) | np.isinf(y_brief_train))
+marketdata = mktdata()
 
-print(X_brief_train.applymap(lambda x: not isinstance(x, float)).sum().sum())
-#print(X_brief_train.values.shape, y_brief_train['r_Open_after'].values.shape)
+#print('2001-09-13' in marketdata.index)
+#print('2001-09-14' in marketdata.index)
+#print('2007-04-06' in marketdata.index)
+#print(y_brief_train.ix[['2001-09-13','2001-09-14','2007-04-06']])
+errors = y_brief_train['r_Open_after'][y_brief_train['r_Open_after'].apply(lambda x: np.isnan(x))]
+print(errors)
+
+X_brief_train = X_brief_train.drop(errors.index)
+y_brief_train = y_brief_train.drop(errors.index)
+y_brief_adj_train = y_brief_adj_train.drop(errors.index)
+
+#assert not np.any(np.isnan(X_brief_train) | np.isinf(X_brief_train))
+#assert not np.any(np.isnan(y_brief_train['r_Open_after']))
+#assert not np.any(np.isinf(y_brief_train['r_Open_after']))
+
 regr.fit(X_brief_train.values, y_brief_train['r_Open_after'].values)
 
 # The coefficients
 print('Coefficients: \n', regr.coef_)
 
 # The mean square error
-#print("Residual sum of squares: %.2f" % np.mean((regr.predict(X_brief_cv.values) - y_brief_cv['r_Open_after'].values) ** 2))
-print(regr.predict(X_brief_cv.values))
+print("Residual sum of squares: %.2f" % np.mean((regr.predict(X_brief_cv.values) - y_brief_cv['r_Open_after'].values) ** 2))
+#print(regr.predict(X_brief_cv.values))
 # Explained variance score: 1 is perfect prediction
 print('Variance score: %.2f' % regr.score(X_brief_cv.values, y_brief_cv['r_Open_after'].values))
 
