@@ -270,27 +270,12 @@ NEXT STEPS:
 -scikit learn and perform linear regression with regularization
 '''
 # Create linear regression object
-regr = LinearRegression()#Ridge(alpha=0.5)
-#print(y_brief_train)
+regr = Ridge(alpha=0.5)
 
-#print((X_brief_train in [NA, np.inf, -np.inf]).sum().sum())
-#print((y_brief_train in [NA, np.inf, -np.inf]).sum().sum())
-
-# Train the model using the training sets))
-#print(X_brief_train.values)
-#newx = csr_matrix(X_brief_train.values)
-#newy = csr_matrix(y_brief_train['r_Open_after'].values)
-
-
-marketdata = mktdata()
-
-#print('2001-09-13' in marketdata.index)
-#print('2001-09-14' in marketdata.index)
-#print('2007-04-06' in marketdata.index)
-#print(y_brief_train.ix[['2001-09-13','2001-09-14','2007-04-06']])
+# Train the model using the training sets
 errors = y_brief_train['r_Open_after'][y_brief_train['r_Open_after'].apply(lambda x: np.isnan(x))]
-print(errors)
 
+# drop errors
 X_brief_train = X_brief_train.drop(errors.index)
 y_brief_train = y_brief_train.drop(errors.index)
 y_brief_adj_train = y_brief_adj_train.drop(errors.index)
@@ -306,7 +291,7 @@ print('Coefficients: \n', regr.coef_)
 
 # The mean square error
 print("Residual sum of squares: %.2f" % np.mean((regr.predict(X_brief_cv.values) - y_brief_cv['r_Open_after'].values) ** 2))
-#print(regr.predict(X_brief_cv.values))
+
 # Explained variance score: 1 is perfect prediction
 print('Variance score: %.2f' % regr.score(X_brief_cv.values, y_brief_cv['r_Open_after'].values))
 
