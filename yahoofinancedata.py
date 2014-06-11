@@ -93,23 +93,24 @@ def processframe(econdf):
         elif element in NAs: return NA
         elif element in ['ADP Employment', 'ADP Employment Report']: return 'ADP Employment Change'
         elif element in ['Case Shiller 20 City Index', 'Case-Shiller 20 City', 'Case-Shiller 20-city Index (y/y)', 'Case-Shiller Housing Price Index', 'CaseShiller 20 City', 'CaseShiller Home Price Index', 'S&P;/Case-Shiller Home Price Index', 'S&P;/CaseShiller Composite', 'S&P;/CaseShiller Home Price Index']: return 'Case-Shiller 20-city Index'
-        elif element in ['Core PCE Inflation', 'PCE Prices', 'Core PCE']: return 'PCE Prices - Core'
+        elif element in ['Core PCE Inflation', 'PCE Prices', 'Core PCE', 'PCE Core Inflation', 'PCE Core', 'Core PCE Prices']: return 'PCE Prices - Core'
         elif element == 'Current Account Balance': return 'Current Account'
         elif element == 'Durable Goods Orders': return 'Durable Orders'
-        elif element in ['Durable Goods - Ex Transportation', 'Durable Goods -ex Transportation', 'Durable Orders - ex Transportation', 'Durable Orders - ex transporation', 'Durable Orders -ex Auto', 'Durable Orders -ex Transporation', 'Durable Orders -ex Transportation', 'Durable Orders ex Auto', 'Durable Orders ex Transporation', 'Durable Orders ex Transportation', 'Durable Orders ex auto', 'Durable Orders ex transportation', 'Durable Orders, Ex-Auto', 'Durable Orders, Ex-Tran', 'Durable Orders, Ex-Transportation', 'Durable Ordes ex Transportation', 'Durables, Ex Transportation', 'Durables, Ex-Tran', 'Durables, Ex-Transport', 'Durables, Ex-Transportation', 'Durables, ex Transporation']: return 'Durable Goods -ex transportation'
+        elif element in ['Durable Goods - Ex Transportation', 'Durable Goods -ex Transportation', 'Durable Orders - ex Transportation', 'Durable Orders - ex transporation', 'Durable Orders -ex Auto', 'Durable Orders -ex Transporation', 'Durable Orders -ex Transportation', 'Durable Orders ex Auto', 'Durable Orders ex Transporation', 'Durable Orders ex Transportation', 'Durable Orders ex auto', 'Durable Orders ex transportation', 'Durable Orders, Ex-Auto', 'Durable Orders, Ex-Tran', 'Durable Orders, Ex-Transportation', 'Durable Ordes ex Transportation', 'Durables, Ex Transportation', 'Durables, Ex-Tran', 'Durables, Ex-Transport', 'Durables, Ex-Transportation', 'Durables, ex Transporation', 'Durable Goods Orders - ex Transporation', 'Durable Goods Orders -ex Transportation', 'Durable Goods Orders ex Auto', 'Durable Orders -ex transportation']: return 'Durable Goods -ex transportation'
         elif element == 'Net Long-term TIC Flows': return 'Net Long-Term TIC Flows'
         elif element == 'Trsy Budget': return 'Treasury Budget'
         elif element == 'Unit Labor Costs - Preliminary': return 'Unit Labor Costs -Prel'
         elif element in ['Unit Labor Costs - Rev', 'Unit Labor Costs - Rev.', 'Unit Labor Costs - Revised', 'Unit Labor Costs-Rev', 'Unit Labor Costs-Rev.']: return 'Unit Labor Costs -Rev'
-        elif element == 'University of Michigan Sentiment - Final': return 'U Michigan Consumer Sentiment - Final'
-        elif element == 'University of Michigan Sentiment': return 'U. Michigan Consumer Sentiment'
+        elif element in ['University of Michigan Sentiment - Final', 'U. Michigan Consumer Sentiment', 'University of Michigan Sentiment', 'U Michigan Sentiment - Final', 'Michigan Sentiment - Final', 'Mich Sentiment- Final', 'Mich Sentiment']: return 'U Michigan Consumer Sentiment - Final'
+        elif element in ['Mich Sentiment-Prel.', 'Mich Sentiment-Prel']: return 'Mich Sentiment - Preliminary'
         elif element == 'Nonfarm Payrolls - Private': return 'Nonfarm Private Payrolls'
         elif element == 'NAHB Market Housing Index': return 'NAHB Housing Market Index'
         elif element == 'Mich Sentiment-Rev': return 'Mich Sentiment-Rev.'
         elif element in ['FHFA Housing Price Index', 'FHFA US Housing Price Index']: return 'FHFA Home Price Index'
         elif element == 'NAPM Index': return 'ISM Index'
         elif element == 'NAPM Services': return 'ISM Services'
-        elif element in ['NY Empire State Index', 'Empire Manufacturing Index']: return 'Empire Manufacturing'
+        elif element in ['GDP - Deflator', 'GDP Deflator', 'GDP Deflator - Second Estimate', 'GDP Deflator - Third Estimate']: return 'Chain Deflator-Final'
+        elif element in ['NY Empire State Index', 'Empire Manufacturing Index', 'Empire Manufacturing Survey', 'Empire State Mfg.', 'NY Empire Manufacturing Index', 'NY Fed - Empire Manufacturing Index', 'NY Fed - Empire Manufacturing Survey']: return 'Empire Manufacturing'
         elif 'bcf' in element.lower(): return element[:-3]
         elif 'bp' in element.lower(): return float(element[:-2]) / 100
         else: return element
@@ -265,10 +266,13 @@ y_mkt_train, y_mkt_cv, y_mkt_test = training_validation_testing_sets(y_mkt)
 y_mkt_adj_train, y_mkt_adj_cv, y_mkt_adj_test = training_validation_testing_sets(y_mkt_adj)
 
 
+
+for item in X_brief_train.columns:
+    print(item)
 '''
 NEXT STEPS:
 -scikit learn and perform linear regression with regularization
-'''
+
 # Create linear regression object
 regr = Ridge(alpha=0.5)
 
@@ -305,3 +309,4 @@ print("Residual sum of squares: %.2f" % np.mean((regr.predict(X_brief_cv.values)
 # Explained variance score: 1 is perfect prediction
 print('Variance score: %.2f' % regr.score(X_brief_cv.values, y_brief_cv['r_Open_after'].values))
 
+'''
