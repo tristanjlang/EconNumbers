@@ -104,7 +104,7 @@ def processframe(econdf):
         elif element in ['University of Michigan Sentiment - Final', 'U. Michigan Consumer Sentiment', 'University of Michigan Sentiment', 'U Michigan Sentiment - Final', 'Michigan Sentiment - Final', 'Mich Sentiment- Final', 'Mich Sentiment']: return 'U Michigan Consumer Sentiment - Final'
         elif element in ['Mich Sentiment-Prel.', 'Mich Sentiment-Prel']: return 'Mich Sentiment - Preliminary'
         elif element == 'Nonfarm Payrolls - Private': return 'Nonfarm Private Payrolls'
-        elif element == 'NAHB Market Housing Index': return 'NAHB Housing Market Index'
+        elif element in ['NAHB Market Housing Index', 'NAHB Market Index']: return 'NAHB Housing Market Index'
         elif element == 'Mich Sentiment-Rev': return 'Mich Sentiment-Rev.'
         elif element in ['FHFA Housing Price Index', 'FHFA US Housing Price Index']: return 'FHFA Home Price Index'
         elif element == 'NAPM Index': return 'ISM Index'
@@ -267,14 +267,15 @@ y_mkt_adj_train, y_mkt_adj_cv, y_mkt_adj_test = training_validation_testing_sets
 
 
 
-for item in X_brief_train.columns:
-    print(item)
+#for item in X_brief_train.columns:
+#    print(item)
 '''
 NEXT STEPS:
 -scikit learn and perform linear regression with regularization
+'''
 
 # Create linear regression object
-regr = Ridge(alpha=0.5)
+regr = Ridge(alpha=100)
 
 # Train the model using the training sets
 
@@ -302,11 +303,12 @@ regr.fit(X_brief_train.values, y_brief_train['r_Open_after'].values)
 
 # The coefficients
 print('Coefficients: \n', regr.coef_)
+for item in regr.coef_:
+    print(item)
 
 # The mean square error
-print("Residual sum of squares: %.2f" % np.mean((regr.predict(X_brief_cv.values) - y_brief_cv['r_Open_after'].values) ** 2))
+#print("Residual sum of squares: %.2f" % np.mean((regr.predict(X_brief_cv.values) - y_brief_cv['r_Open_after'].values) ** 2))
+print("Residual sum of squares: %s" % np.mean((regr.predict(X_brief_cv.values) - y_brief_cv['r_Open_after'].values) ** 2))
 
 # Explained variance score: 1 is perfect prediction
-print('Variance score: %.2f' % regr.score(X_brief_cv.values, y_brief_cv['r_Open_after'].values))
-
-'''
+print('Variance score: %s' % regr.score(X_brief_cv.values, y_brief_cv['r_Open_after'].values))
